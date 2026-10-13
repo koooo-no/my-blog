@@ -1,0 +1,42 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import PostLayout from '../../layouts/PostLayout.astro';
+import { sortByDate } from '../../utils/date';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const isPublished = (entry: { data: { draft: boolean } }) =>
+    import.meta.env.PROD ? !entry.data.draft : true;
+
+  const posts = sortByDate((await getCollection('posts')).filter(isPublished));
+
+  return posts.map((post, i) => ({
+    params: { slug: post.id },
+    props: {
+      post,
+      prev: i > 0 ? { title: posts[i - 1].data.title, href: `/blog/${posts[i - 1].id}` } : null,
+      next:
+        i < posts.length - 1
+          ? { title: posts[i + 1].data.title, href: `/blog/${posts[i + 1].id}` }
+          : null,
+    },
+  }));
+};
+
+const { post, prev, next } = Astro.props;
+const { Content } = await render(post);
+---
+
+<PostLayout
+  title={post.data.title}
+  description={post.data.description}
+  pubDate={post.data.pubDate}
+  updatedDate={post.data.updatedDate}
+  tags={post.data.tags}
+  body={post.body}
+  prev={prev}
+  next={next}
+  eyebrow="博客"
+>
+  <Content />
+</PostLayout>

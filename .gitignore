@@ -1,0 +1,22 @@
+# 构建产物
+dist/
+.output/
+
+# 依赖
+node_modules/
+
+# Astro 自动生成
+.astro/
+
+# 环境变量
+.env
+.env.production
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/*
+!.vscode/extensions.json
+.idea/

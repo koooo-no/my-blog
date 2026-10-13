@@ -1,0 +1,91 @@
+---
+import { getCollection } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EntryItem from '../../components/EntryItem.astro';
+import { sortByDate } from '../../utils/date';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const isPublished = (entry: { data: { draft: boolean } }) =>
+    import.meta.env.PROD ? !entry.data.draft : true;
+
+  const [posts, notes, projects] = await Promise.all([
+    getCollection('posts'),
+    getCollection('notes'),
+    getCollection('projects'),
+  ]);
+
+  const all = [
+    ...posts.filter(isPublished).map((e) => ({ ...e, kind: '博客' as const, href: `/blog/${e.id}` })),
+    ...notes.filter(isPublished).map((e) => ({ ...e, kind: '知识库' as const, href: `/notes/${e.id}` })),
+    ...projects
+      .filter(isPublished)
+      .map((e) => ({ ...e, kind: '作品' as const, href: `/projects/${e.id}` })),
+  ];
+
+  const tags = new Set<string>();
+  for (const entry of all) for (const t of entry.data.tags) tags.add(t);
+
+  return [...tags].map((tag) => ({
+    params: { tag },
+    props: {
+      tag,
+      entries: sortByDate(all.filter((e) => e.data.tags.includes(tag))),
+    },
+  }));
+};
+
+const { tag, entries } = Astro.props;
+---
+
+<BaseLayout title={`标签：${tag}`} description={`所有带有「${tag}」标签的内容。`}>
+  <div class="container">
+    <header class="page-head">
+      <p class="back"><a href="/tags">← 所有标签</a></p>
+      <h1>#{tag}</h1>
+      <p class="count">共 {entries.length} 条内容</p>
+    </header>
+
+    <div class="list">
+      {
+        entries.map((entry) => (
+          <EntryItem
+            href={entry.href}
+            title={entry.data.title}
+            description={entry.data.description}
+            date={entry.data.pubDate}
+            tags={[]}
+            badge={entry.kind}
+            showDate={true}
+          />
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 28px;
+  }
+
+  .back {
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+  }
+
+  .page-head h1 {
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+
+  .count {
+    margin: 0;
+    color: var(--text-soft);
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

@@ -1,0 +1,40 @@
+---
+import { getEntry, render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { formatDate } from '../utils/date';
+
+const entry = await getEntry('pages', 'about');
+if (!entry) {
+  throw new Error('缺少 src/content/pages/about.md，请先创建这个文件。');
+}
+const { Content } = await render(entry);
+---
+
+<BaseLayout title={entry.data.title} description={entry.data.description}>
+  <div class="container-narrow">
+    <header class="page-head">
+      <h1>{entry.data.title}</h1>
+      {
+        entry.data.updatedDate && (
+          <p class="meta">更新于 {formatDate(entry.data.updatedDate)}</p>
+        )
+      }
+    </header>
+
+    <div class="prose">
+      <Content />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-head h1 {
+    margin-bottom: 10px;
+  }
+</style>

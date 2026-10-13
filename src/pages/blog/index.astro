@@ -1,0 +1,119 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EntryItem from '../../components/EntryItem.astro';
+import { getCollection } from 'astro:content';
+import { sortByDate } from '../../utils/date';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const posts = sortByDate((await getCollection('posts')).filter(isPublished));
+
+// 按年份分组
+const byYear = new Map<string, typeof posts>();
+for (const post of posts) {
+  const year = String(post.data.pubDate.getFullYear());
+  if (!byYear.has(year)) byYear.set(year, []);
+  byYear.get(year)!.push(post);
+}
+const years = [...byYear.keys()].sort((a, b) => Number(b) - Number(a));
+
+// 全部标签
+const tagCount = new Map<string, number>();
+for (const post of posts) {
+  for (const t of post.data.tags) tagCount.set(t, (tagCount.get(t) ?? 0) + 1);
+}
+const tags = [...tagCount.entries()].sort((a, b) => b[1] - a[1]);
+---
+
+<BaseLayout title="博客" description="全部文章，按时间排列。">
+  <div class="container">
+    <header class="page-head">
+      <h1>博客</h1>
+      <p>共 {posts.length} 篇文章，{years.length} 个年份。</p>
+    </header>
+
+    {
+      tags.length > 0 && (
+        <div class="tag-bar">
+          {tags.map(([t, n]) => (
+            <a href={`/tags/${encodeURIComponent(t)}`} class="tag">
+              {t} <span class="tag-count">{n}</span>
+            </a>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      posts.length === 0 ? (
+        <p class="empty-state">还没有文章。在 src/content/posts/ 下新建一个 .md 文件即可。</p>
+      ) : (
+        years.map((year) => (
+          <section class="year-group">
+            <h2 class="year">{year}</h2>
+            <div class="list">
+              {byYear.get(year)!.map((post) => (
+                <EntryItem
+                  href={`/blog/${post.id}`}
+                  title={post.data.title}
+                  description={post.data.description}
+                  date={post.data.pubDate}
+                  tags={post.data.tags}
+                  badge={post.data.featured ? '置顶' : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        ))
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 32px;
+  }
+
+  .page-head h1 {
+    margin-bottom: 8px;
+  }
+
+  .page-head p {
+    margin: 0;
+    color: var(--text-soft);
+  }
+
+  .tag-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 32px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tag-count {
+    opacity: 0.65;
+    font-size: 0.72rem;
+  }
+
+  .year-group {
+    margin-top: 44px;
+  }
+
+  .year {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-mute);
+    margin: 0 0 6px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

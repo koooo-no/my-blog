@@ -1,0 +1,51 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import PostLayout from '../../layouts/PostLayout.astro';
+import { sortByDate } from '../../utils/date';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const isPublished = (entry: { data: { draft: boolean } }) =>
+    import.meta.env.PROD ? !entry.data.draft : true;
+
+  const all = sortByDate((await getCollection('notes')).filter(isPublished));
+
+  return all.map((note) => {
+    // 上下篇按同一分类内排序
+    const sameCat = all
+      .filter((n) => n.data.category === note.data.category)
+      .sort((a, b) => a.data.order - b.data.order || b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+    const i = sameCat.findIndex((n) => n.id === note.id);
+
+    return {
+      params: { slug: note.id },
+      props: {
+        note,
+        prev:
+          i > 0 ? { title: sameCat[i - 1].data.title, href: `/notes/${sameCat[i - 1].id}` } : null,
+        next:
+          i >= 0 && i < sameCat.length - 1
+            ? { title: sameCat[i + 1].data.title, href: `/notes/${sameCat[i + 1].id}` }
+            : null,
+      },
+    };
+  });
+};
+
+const { note, prev, next } = Astro.props;
+const { Content } = await render(note);
+---
+
+<PostLayout
+  title={note.data.title}
+  description={note.data.description}
+  pubDate={note.data.pubDate}
+  updatedDate={note.data.updatedDate}
+  tags={note.data.tags}
+  body={note.body}
+  prev={prev}
+  next={next}
+  eyebrow={note.data.category}
+>
+  <Content />
+</PostLayout>

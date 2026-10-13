@@ -1,0 +1,220 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EntryItem from '../components/EntryItem.astro';
+import { getCollection } from 'astro:content';
+import { SITE, HOME_LIMITS } from '../consts';
+import { sortByDate } from '../utils/date';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const posts = sortByDate((await getCollection('posts')).filter(isPublished));
+const notes = sortByDate((await getCollection('notes')).filter(isPublished));
+const projects = (await getCollection('projects'))
+  .filter(isPublished)
+  .sort((a, b) => Number(b.data.featured) - Number(a.data.featured) || b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const featured = [...posts].sort(
+  (a, b) => Number(b.data.featured) - Number(a.data.featured) || b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const recentPosts = featured.slice(0, HOME_LIMITS.posts);
+const recentNotes = notes.slice(0, HOME_LIMITS.notes);
+const recentProjects = projects.slice(0, HOME_LIMITS.projects);
+---
+
+<BaseLayout>
+  <section class="container hero">
+    <p class="hero-greeting">你好，我是 {SITE.author} 👋</p>
+    <h1 class="hero-title">{SITE.description}</h1>
+    <p class="hero-sub">
+      这里放我的文章、笔记和做过的东西。想到什么写什么，慢慢积累。
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="/blog">开始阅读</a>
+      <a class="btn" href="/about">关于我</a>
+    </div>
+  </section>
+
+  <div class="container home-sections">
+    <section>
+      <div class="section-head">
+        <h2>最新文章</h2>
+        <a href="/blog">全部 {posts.length} 篇 →</a>
+      </div>
+      {
+        recentPosts.length > 0 ? (
+          <div class="list">
+            {recentPosts.map((post) => (
+              <EntryItem
+                href={`/blog/${post.id}`}
+                title={post.data.title}
+                description={post.data.description}
+                date={post.data.pubDate}
+                tags={post.data.tags}
+                badge={post.data.featured ? '置顶' : undefined}
+              />
+            ))}
+          </div>
+        ) : (
+          <p class="empty-state">还没有文章，去 src/content/posts/ 里新建一个吧。</p>
+        )
+      }
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>知识库</h2>
+        <a href="/notes">全部 {notes.length} 篇 →</a>
+      </div>
+      {
+        recentNotes.length > 0 ? (
+          <div class="list">
+            {recentNotes.map((note) => (
+              <EntryItem
+                href={`/notes/${note.id}`}
+                title={note.data.title}
+                description={note.data.description}
+                date={note.data.pubDate}
+                tags={note.data.tags}
+              />
+            ))}
+          </div>
+        ) : (
+          <p class="empty-state">还没有笔记，去 src/content/notes/ 里新建一个吧。</p>
+        )
+      }
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>作品</h2>
+        <a href="/projects">全部 {projects.length} 个 →</a>
+      </div>
+      {
+        recentProjects.length > 0 ? (
+          <div class="project-grid">
+            {recentProjects.map((p) => (
+              <a class="project-card" href={p.data.link ?? `/projects#${p.id}`}>
+                <div class="project-top">
+                  <span class="project-status">{p.data.status}</span>
+                </div>
+                <h3>{p.data.title}</h3>
+                <p>{p.data.description}</p>
+                <div class="project-tags">
+                  {p.data.tags.slice(0, 3).map((t) => (
+                    <span class="tag">{t}</span>
+                  ))}
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p class="empty-state">还没有作品，去 src/content/projects/ 里新建一个吧。</p>
+        )
+      }
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .hero {
+    padding-block: 32px 56px;
+    max-width: 780px;
+  }
+
+  .hero-greeting {
+    margin: 0 0 14px;
+    font-size: 0.95rem;
+    color: var(--text-soft);
+    font-weight: 500;
+  }
+
+  .hero-title {
+    margin: 0 0 20px;
+    font-size: clamp(2rem, 1.3rem + 2.8vw, 3rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-sub {
+    margin: 0 0 30px;
+    font-size: 1.05rem;
+    color: var(--text-soft);
+    line-height: 1.75;
+    max-width: 620px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .home-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+
+  .project-card {
+    display: flex;
+    flex-direction: column;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.18s ease;
+  }
+
+  .project-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    color: var(--text);
+  }
+
+  .project-top {
+    margin-bottom: 10px;
+  }
+
+  .project-status {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 9px;
+    border-radius: 999px;
+  }
+
+  .project-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.08rem;
+  }
+
+  .project-card p {
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+    color: var(--text-soft);
+    line-height: 1.65;
+    flex: 1;
+  }
+
+  .project-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+</style>

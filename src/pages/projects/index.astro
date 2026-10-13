@@ -1,0 +1,136 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const projects = (await getCollection('projects'))
+  .filter(isPublished)
+  .sort(
+    (a, b) =>
+      Number(b.data.featured) - Number(a.data.featured) ||
+      b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  );
+---
+
+<BaseLayout title="作品" description="我做过的一些东西。">
+  <div class="container">
+    <header class="page-head">
+      <h1>作品</h1>
+      <p>做过的东西，包括还在做的和已经做完的。</p>
+    </header>
+
+    {
+      projects.length === 0 ? (
+        <p class="empty-state">还没有作品。在 src/content/projects/ 下新建一个 .md 文件即可。</p>
+      ) : (
+        <div class="grid">
+          {projects.map((p) => (
+            <a class="card" href={`/projects/${p.id}`}>
+              <div class="card-top">
+                <span class="status">{p.data.status}</span>
+                {p.data.featured && <span class="star">精选</span>}
+              </div>
+              <h2>{p.data.title}</h2>
+              <p class="desc">{p.data.description}</p>
+              <div class="tags">
+                {p.data.tags.map((t) => (
+                  <span class="tag">{t}</span>
+                ))}
+              </div>
+            </a>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 36px;
+  }
+
+  .page-head h1 {
+    margin-bottom: 8px;
+  }
+
+  .page-head p {
+    margin: 0;
+    color: var(--text-soft);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: var(--text);
+    transition: all 0.18s ease;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    color: var(--text);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .status {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 2px 9px;
+    border-radius: 999px;
+  }
+
+  .star {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    padding: 2px 9px;
+    border-radius: 999px;
+  }
+
+  :global([data-theme='dark']) .star {
+    color: #0e0f12;
+  }
+
+  .card h2 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+  }
+
+  .desc {
+    margin: 0 0 18px;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--text-soft);
+    flex: 1;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+</style>

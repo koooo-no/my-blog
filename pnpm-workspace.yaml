@@ -1,0 +1,5 @@
+# pnpm 配置
+# 允许 esbuild 和 sharp 运行安装脚本，否则 Astro 无法构建
+allowBuilds:
+  esbuild: true
+  sharp: true

@@ -1,0 +1,144 @@
+---
+import { shortDate } from '../utils/date';
+
+interface Props {
+  href: string;
+  title: string;
+  description?: string;
+  date?: Date;
+  tags?: string[];
+  /** 可选的小标签，比如"置顶" */
+  badge?: string;
+  showDate?: boolean;
+}
+
+const { href, title, description, date, tags = [], badge, showDate = true } = Astro.props;
+---
+
+<article class="entry">
+  <div class="entry-main">
+    <h3 class="entry-title">
+      <a href={href}>{title}</a>
+      {badge && <span class="badge">{badge}</span>}
+    </h3>
+    {description && <p class="entry-desc">{description}</p>}
+    <div class="entry-meta">
+      {showDate && date && <time datetime={date.toISOString()}>{shortDate(date)}</time>}
+      {
+        tags.length > 0 && (
+          <span class="entry-tags">
+            {tags.slice(0, 4).map((t) => (
+              <a href={`/tags/${encodeURIComponent(t)}`} class="tag">{t}</a>
+            ))}
+          </span>
+        )
+      }
+    </div>
+  </div>
+  <span class="entry-arrow" aria-hidden="true">→</span>
+</article>
+
+<style>
+  .entry {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 18px;
+    margin-inline: -18px;
+    border-radius: var(--radius);
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.15s ease;
+  }
+
+  .entry:last-child {
+    border-bottom: 0;
+  }
+
+  .entry:hover {
+    background: var(--bg-soft);
+  }
+
+  .entry-main {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .entry-title {
+    margin: 0 0 6px;
+    font-size: 1.08rem;
+    line-height: 1.45;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .entry-title a {
+    color: var(--text);
+  }
+
+  .entry:hover .entry-title a {
+    color: var(--accent);
+  }
+
+  .badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    line-height: 1.7;
+    flex-shrink: 0;
+  }
+
+  :global([data-theme='dark']) .badge {
+    color: #0e0f12;
+  }
+
+  .entry-desc {
+    margin: 0 0 10px;
+    color: var(--text-soft);
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  .entry-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--text-mute);
+  }
+
+  .entry-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .entry-arrow {
+    color: var(--text-mute);
+    font-size: 1.1rem;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .entry:hover .entry-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--accent);
+  }
+
+  @media (max-width: 560px) {
+    .entry-arrow {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,133 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EntryItem from '../../components/EntryItem.astro';
+import { getCollection } from 'astro:content';
+import { sortByDate } from '../../utils/date';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const notes = sortByDate((await getCollection('notes')).filter(isPublished));
+
+// 按分类分组，分类内按 order 再按时间排序
+const byCategory = new Map<string, typeof notes>();
+for (const note of notes) {
+  const c = note.data.category || '未分类';
+  if (!byCategory.has(c)) byCategory.set(c, []);
+  byCategory.get(c)!.push(note);
+}
+for (const [, list] of byCategory) {
+  list.sort((a, b) => a.data.order - b.data.order || b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+}
+const categories = [...byCategory.keys()].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+---
+
+<BaseLayout title="知识库" description="按主题整理的知识笔记，长期更新。">
+  <div class="container">
+    <header class="page-head">
+      <h1>知识库</h1>
+      <p>
+        共 {notes.length} 篇笔记，{categories.length} 个分类。零散的知识点，整理成能复用的东西。
+      </p>
+    </header>
+
+    {
+      categories.length === 0 ? (
+        <p class="empty-state">还没有笔记。在 src/content/notes/ 下新建一个 .md 文件即可。</p>
+      ) : (
+        <div class="category-bar">
+          {categories.map((c) => (
+            <a href={`#${encodeURIComponent(c)}`} class="chip">
+              {c} <span class="chip-count">{byCategory.get(c)!.length}</span>
+            </a>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      categories.map((c) => (
+        <section class="category-group" id={encodeURIComponent(c)}>
+          <div class="section-head">
+            <h2>{c}</h2>
+            <span class="count">{byCategory.get(c)!.length} 篇</span>
+          </div>
+          <div class="list">
+            {byCategory.get(c)!.map((note) => (
+              <EntryItem
+                href={`/notes/${note.id}`}
+                title={note.data.title}
+                description={note.data.description}
+                date={note.data.pubDate}
+                tags={note.data.tags}
+              />
+            ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 28px;
+  }
+
+  .page-head h1 {
+    margin-bottom: 8px;
+  }
+
+  .page-head p {
+    margin: 0;
+    color: var(--text-soft);
+    max-width: 620px;
+  }
+
+  .category-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 0.88rem;
+    transition: all 0.15s ease;
+  }
+
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .chip-count {
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+
+  .category-group {
+    margin-top: 48px;
+    scroll-margin-top: 90px;
+  }
+
+  .count {
+    font-size: 0.82rem;
+    color: var(--text-mute);
+    white-space: nowrap;
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+</style>

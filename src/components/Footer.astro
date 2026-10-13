@@ -1,0 +1,74 @@
+---
+import { SITE, SOCIALS } from '../consts';
+
+const year = new Date().getFullYear();
+const range = SITE.since === year ? `${year}` : `${SITE.since}–${year}`;
+---
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-left">
+      <p class="copyright">© {range} {SITE.author}</p>
+      <p class="built">用 Astro 搭建 · 托管于云端</p>
+    </div>
+
+    <nav class="socials" aria-label="联系方式">
+      {
+        SOCIALS.map((s) => (
+          <a href={s.href} rel="noopener noreferrer">{s.label}</a>
+        ))
+      }
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border);
+    background: var(--bg-soft);
+    padding-block: 32px;
+    margin-top: 40px;
+  }
+
+  .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .copyright {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-soft);
+  }
+
+  .built {
+    margin: 2px 0 0;
+    font-size: 0.78rem;
+    color: var(--text-mute);
+  }
+
+  .socials {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .socials a {
+    font-size: 0.88rem;
+    color: var(--text-soft);
+  }
+
+  .socials a:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 560px) {
+    .footer-inner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

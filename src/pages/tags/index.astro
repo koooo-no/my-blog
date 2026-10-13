@@ -1,0 +1,120 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const [posts, notes] = await Promise.all([
+  getCollection('posts'),
+  getCollection('notes'),
+]);
+
+const count = new Map<string, number>();
+const sources = new Map<string, Set<string>>();
+
+for (const [kind, list] of [
+  ['博客', posts],
+  ['知识库', notes],
+] as const) {
+  for (const entry of list.filter(isPublished)) {
+    for (const tag of entry.data.tags) {
+      count.set(tag, (count.get(tag) ?? 0) + 1);
+      if (!sources.has(tag)) sources.set(tag, new Set());
+      sources.get(tag)!.add(kind);
+    }
+  }
+}
+
+const tags = [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-CN'));
+---
+
+<BaseLayout title="标签" description="所有标签，按使用频率排列。">
+  <div class="container-narrow">
+    <header class="page-head">
+      <h1>标签</h1>
+      <p>共 {tags.length} 个标签。</p>
+    </header>
+
+    {
+      tags.length === 0 ? (
+        <p class="empty-state">还没有标签。给文章加上 tags 就会出现。</p>
+      ) : (
+        <div class="tag-cloud">
+          {tags.map(([tag, n]) => (
+            <a href={`/tags/${encodeURIComponent(tag)}`} class="tag-item">
+              <span class="tag-name">{tag}</span>
+              <span class="tag-meta">
+                {n}
+                <span class="tag-src">{[...sources.get(tag)!].join('·')}</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 32px;
+  }
+
+  .page-head h1 {
+    margin-bottom: 8px;
+  }
+
+  .page-head p {
+    margin: 0;
+    color: var(--text-soft);
+  }
+
+  .tag-cloud {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tag-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 16px;
+    margin-inline: -16px;
+    border-radius: var(--radius);
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    transition: background-color 0.15s ease;
+  }
+
+  .tag-item:last-child {
+    border-bottom: 0;
+  }
+
+  .tag-item:hover {
+    background: var(--bg-soft);
+    color: var(--accent);
+  }
+
+  .tag-name {
+    font-weight: 500;
+    font-size: 1rem;
+  }
+
+  .tag-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: var(--text-mute);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  .tag-src {
+    font-size: 0.74rem;
+    opacity: 0.7;
+  }
+</style>

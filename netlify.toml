@@ -1,0 +1,10 @@
+# 这是给 Vercel / Cloudflare Pages / Netlify 用的构建配置
+# 一般平台会自动识别 Astro，识别不出来时才需要这个文件
+
+[build]
+  command = "pnpm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  ASTRO_TELEMETRY_DISABLED = "1"

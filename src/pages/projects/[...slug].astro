@@ -1,0 +1,58 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import PostLayout from '../../layouts/PostLayout.astro';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const isPublished = (entry: { data: { draft: boolean } }) =>
+    import.meta.env.PROD ? !entry.data.draft : true;
+
+  const projects = (await getCollection('projects')).filter(isPublished);
+
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { project },
+  }));
+};
+
+const { project } = Astro.props;
+const { Content } = await render(project);
+
+const links = [
+  project.data.link ? { label: '访问项目 ↗', href: project.data.link } : null,
+  project.data.repo ? { label: '源代码 ↗', href: project.data.repo } : null,
+].filter(Boolean) as { label: string; href: string }[];
+---
+
+<PostLayout
+  title={project.data.title}
+  description={project.data.description}
+  pubDate={project.data.pubDate}
+  tags={project.data.tags}
+  body={project.body}
+  eyebrow={project.data.status}
+>
+  {
+    links.length > 0 && (
+      <div class="project-links">
+        {links.map((l) => (
+          <a class="btn" href={l.href} target="_blank" rel="noopener noreferrer">
+            {l.label}
+          </a>
+        ))}
+      </div>
+    )
+  }
+  <Content />
+</PostLayout>
+
+<style>
+  .project-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 36px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>
