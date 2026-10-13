@@ -27,10 +27,35 @@ function isActive(href: string): boolean {
           </a>
         ))
       }
+      <a
+        href={withBase('/search')}
+        class:list={['search-link', { active: isActive('/search') }]}
+        aria-label="搜索"
+        title="搜索（按 / 键）"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.5-3.5"></path>
+        </svg>
+      </a>
       <ThemeToggle />
     </nav>
   </div>
 </header>
+
+<script is:inline define:vars={{ searchUrl: withBase('/search') }}>
+  // 全局快捷键：按 / 直达搜索
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    var el = document.activeElement;
+    var tag = el && el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (el && el.isContentEditable)) return;
+    e.preventDefault();
+    var box = document.getElementById('search-input');
+    if (box) box.focus();
+    else location.href = searchUrl;
+  });
+</script>
 
 <style>
   .site-header {
@@ -102,6 +127,38 @@ function isActive(href: string): boolean {
 
   .nav-link.active {
     color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* 搜索按钮：和主题切换按钮保持一致的尺寸与手感 */
+  .search-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    margin-left: 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-soft);
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .search-link svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .search-link:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .search-link.active {
+    color: var(--accent);
+    border-color: var(--accent);
     background: var(--accent-soft);
   }
 

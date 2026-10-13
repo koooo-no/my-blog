@@ -1,0 +1,498 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { withBase } from '../utils/url';
+
+// 索引地址和站点前缀都交给前端，前端不用猜
+const indexUrl = withBase('/search-index.json');
+const basePrefix = withBase('/').replace(/\/$/, '');
+---
+
+<BaseLayout
+  title="搜索"
+  description="搜索站内的全部文章、笔记和作品。"
+  noindex
+>
+  <div class="container-narrow" id="search-app" data-index-url={indexUrl} data-base={basePrefix}>
+    <header class="page-head">
+      <h1>搜索</h1>
+      <p>输入关键词，从全部文章、笔记和作品中查找。</p>
+    </header>
+
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-3.5-3.5"></path>
+      </svg>
+      <input
+        id="search-input"
+        type="search"
+        placeholder="搜索…"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        aria-label="搜索关键词"
+        aria-controls="search-results"
+      />
+      <button id="search-clear" class="clear-btn" type="button" aria-label="清空" hidden>×</button>
+    </div>
+
+    <p id="search-status" class="status" role="status" aria-live="polite"></p>
+    <div id="search-results" class="results" aria-label="搜索结果"></div>
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 24px;
+  }
+
+  .page-head h1 {
+    margin-bottom: 8px;
+  }
+
+  .page-head p {
+    margin: 0;
+    color: var(--text-soft);
+  }
+
+  /* ---------- 输入框 ---------- */
+
+  .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    width: 19px;
+    height: 19px;
+    color: var(--text-mute);
+    pointer-events: none;
+  }
+
+  :global(#search-input) {
+    width: 100%;
+    padding: 14px 46px 14px 46px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  :global(#search-input)::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  :global(#search-input):focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  :global(#search-input)::placeholder {
+    color: var(--text-mute);
+  }
+
+  :global(.clear-btn) {
+    position: absolute;
+    right: 12px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    color: var(--text-soft);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  :global(.clear-btn):hover {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .status {
+    margin: 0 0 16px;
+    font-size: 0.85rem;
+    color: var(--text-mute);
+    min-height: 1.2em;
+  }
+
+  .results {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- 结果项（由 JS 生成，必须用 :global） ---------- */
+
+  :global(.sr-item) {
+    display: block;
+    padding: 18px 16px;
+    margin-inline: -16px;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    transition: background-color 0.15s ease;
+  }
+
+  :global(.sr-item):last-child {
+    border-bottom: 0;
+  }
+
+  :global(.sr-item):hover,
+  :global(.sr-item.is-active) {
+    background: var(--bg-soft);
+    color: var(--text);
+  }
+
+  :global(.sr-head) {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  :global(.sr-title) {
+    font-size: 1.06rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  :global(.sr-item):hover :global(.sr-title) {
+    color: var(--accent);
+  }
+
+  :global(.sr-kind) {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    line-height: 1.7;
+    flex-shrink: 0;
+  }
+
+  :global([data-theme='dark']) :global(.sr-kind) {
+    color: #0e0f12;
+  }
+
+  :global(.sr-desc),
+  :global(.sr-snippet) {
+    margin: 0 0 6px;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--text-soft);
+  }
+
+  :global(.sr-snippet) {
+    color: var(--text-mute);
+    font-size: 0.86rem;
+  }
+
+  :global(.sr-meta) {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--text-mute);
+    flex-wrap: wrap;
+  }
+
+  :global(.sr-item) mark {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+
+  :global(.sr-empty) {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-mute);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    font-size: 0.95rem;
+    line-height: 1.8;
+  }
+
+  :global(.sr-empty) kbd {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    padding: 1px 6px;
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: var(--bg-soft);
+  }
+
+  :global(.sr-more) {
+    padding: 16px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-mute);
+  }
+</style>
+
+<script>
+  const app = document.getElementById('search-app');
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+  const statusEl = document.getElementById('search-status');
+  const resultsEl = document.getElementById('search-results');
+
+  const INDEX_URL = app.dataset.indexUrl;
+  const BASE = app.dataset.base || '';
+  const MAX_RESULTS = 30;
+
+  let docs = null;
+  let loading = null;
+  let activeIndex = -1;
+
+  // ---------- 工具 ----------
+
+  const escapeHtml = (s) =>
+    String(s).replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+    );
+
+  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /** 先转义再做高亮，避免 XSS */
+  function highlight(text, terms) {
+    if (!text) return '';
+    let out = escapeHtml(text);
+    for (const term of terms) {
+      if (!term) continue;
+      const pattern = escapeRegExp(escapeHtml(term));
+      out = out.replace(new RegExp(pattern, 'gi'), (m) => `\u0001${m}\u0002`);
+    }
+    return out.replace(/\u0001/g, '<mark>').replace(/\u0002/g, '</mark>');
+  }
+
+  function tokenize(query) {
+    return query
+      .toLowerCase()
+      .split(/[\s,，、。；;：:!！?？/|]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+
+  /** 打分；所有关键词都要命中（AND 语义） */
+  function score(doc, terms) {
+    const title = doc.title.toLowerCase();
+    const desc = (doc.desc || '').toLowerCase();
+    const tags = (doc.tags || []).join(' ').toLowerCase();
+    const text = (doc.text || '').toLowerCase();
+
+    let total = 0;
+    for (const term of terms) {
+      let hit = 0;
+      if (title === term) hit += 120;
+      else if (title.includes(term)) hit += 45;
+      if (tags.includes(term)) hit += 22;
+      if (desc.includes(term)) hit += 16;
+      if (text.includes(term)) hit += 6;
+      if (!hit) return 0;
+      total += hit;
+    }
+    return total;
+  }
+
+  /** 取正文里第一处命中附近的片段 */
+  function snippet(doc, terms) {
+    const text = doc.text || '';
+    const lower = text.toLowerCase();
+    let at = -1;
+    for (const term of terms) {
+      const i = lower.indexOf(term);
+      if (i !== -1 && (at === -1 || i < at)) at = i;
+    }
+    if (at === -1) return '';
+    const start = Math.max(0, at - 36);
+    const end = Math.min(text.length, at + 78);
+    return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${y}.${m}.${d}`;
+  }
+
+  // ---------- 索引加载 ----------
+
+  function ensureIndex() {
+    if (docs) return Promise.resolve(docs);
+    if (loading) return loading;
+    statusEl.textContent = '正在加载索引…';
+    loading = fetch(INDEX_URL)
+      .then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then((data) => {
+        docs = data.docs || [];
+        return docs;
+      })
+      .catch(() => {
+        statusEl.textContent = '索引加载失败，请刷新页面重试。';
+        return [];
+      });
+    return loading;
+  }
+
+  // ---------- 渲染 ----------
+
+  function render(list, terms, query) {
+    activeIndex = -1;
+
+    if (!query) {
+      resultsEl.innerHTML =
+        '<div class="sr-empty">输入关键词开始搜索。<br>支持中文分词，多个词用空格隔开（全部命中才显示）。</div>';
+      statusEl.textContent = docs ? `索引已就绪，共 ${docs.length} 条内容。` : '';
+      return;
+    }
+
+    if (!list.length) {
+      resultsEl.innerHTML =
+        '<div class="sr-empty">没有找到匹配的内容。<br>换个关键词，或者少写几个字试试。</div>';
+      statusEl.textContent = '';
+      return;
+    }
+
+    const shown = list.slice(0, MAX_RESULTS);
+    statusEl.textContent =
+      `找到 ${list.length} 条结果` +
+      (list.length > shown.length ? `，显示前 ${shown.length} 条` : '');
+
+    resultsEl.innerHTML = shown
+      .map((doc) => {
+        const desc = doc.desc ? `<p class="sr-desc">${highlight(doc.desc, terms)}</p>` : '';
+        const snip = snippet(doc, terms);
+        const snipHtml =
+          snip && (!doc.desc || !terms.some((t) => doc.desc.toLowerCase().includes(t)))
+            ? `<p class="sr-snippet">${highlight(snip, terms)}</p>`
+            : '';
+        const tags = (doc.tags || [])
+          .slice(0, 4)
+          .map((t) => `<span class="tag">${escapeHtml(t)}</span>`)
+          .join('');
+        return `
+          <a class="sr-item" href="${BASE}${doc.url}">
+            <div class="sr-head">
+              <span class="sr-title">${highlight(doc.title, terms)}</span>
+              <span class="sr-kind">${escapeHtml(doc.kind)}</span>
+            </div>
+            ${desc}
+            ${snipHtml}
+            <div class="sr-meta">
+              <span>${formatDate(doc.date)}</span>
+              ${tags}
+            </div>
+          </a>`;
+      })
+      .join('');
+
+    if (list.length > shown.length) {
+      resultsEl.insertAdjacentHTML(
+        'beforeend',
+        `<div class="sr-more">还有 ${list.length - shown.length} 条结果，试试更具体的关键词</div>`
+      );
+    }
+  }
+
+  // ---------- 搜索 ----------
+
+  let timer = null;
+
+  function search(query, updateUrl = true) {
+    const q = query.trim();
+    clearBtn.hidden = !q;
+
+    if (updateUrl) {
+      const url = new URL(location.href);
+      if (q) url.searchParams.set('q', q);
+      else url.searchParams.delete('q');
+      history.replaceState(null, '', url);
+    }
+
+    if (!q) {
+      render([], [], '');
+      return;
+    }
+
+    const terms = tokenize(q);
+    if (!terms.length) {
+      render([], [], '');
+      return;
+    }
+
+    ensureIndex().then((list) => {
+      if (input.value.trim() !== q) return; // 输入已变化，丢弃旧结果
+      const scored = [];
+      for (const doc of list) {
+        const s = score(doc, terms);
+        if (s > 0) scored.push({ doc, s });
+      }
+      scored.sort((a, b) => b.s - a.s || (a.doc.date < b.doc.date ? 1 : -1));
+      render(
+        scored.map((x) => x.doc),
+        terms,
+        q
+      );
+    });
+  }
+
+  // ---------- 事件 ----------
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const v = input.value;
+    timer = setTimeout(() => search(v), 120);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = '';
+      search('');
+      input.blur();
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    search('');
+    input.focus();
+  });
+
+  // 说明：全局的 "/" 快捷键统一由 Header.astro 处理，
+  // 它发现页面上有 #search-input 时会直接聚焦，不在这里重复绑定。
+
+  // ---------- 初始化 ----------
+
+  const initial = new URL(location.href).searchParams.get('q');
+  if (initial) {
+    input.value = initial;
+    search(initial, false);
+  } else {
+    render([], [], '');
+    input.focus();
+  }
+</script>

@@ -66,10 +66,29 @@ class CDP {
     return new CDP(ws);
   }
 
-  send(method, params = {}) {
+  /**
+   * 发送 CDP 命令。
+   *
+   * 必须带超时：页面导航会销毁执行上下文，此时挂起的 Runtime.evaluate
+   * 可能永远收不到回应，整个脚本就会卡死。
+   */
+  send(method, params = {}, timeout = 30000) {
     const id = ++this.seq;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`CDP ${method} 超时（${timeout}ms）`));
+      }, timeout);
+      this.pending.set(id, {
+        resolve: (v) => {
+          clearTimeout(timer);
+          resolve(v);
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        },
+      });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -171,12 +190,16 @@ async function main() {
     if (p.entry.level === 'error') consoleErrors.push(p.entry.text);
   });
 
-  const evaluate = async (expression) => {
-    const r = await client.send('Runtime.evaluate', {
-      expression,
-      returnByValue: true,
-      awaitPromise: true,
-    });
+  const evaluate = async (expression, timeout = 15000) => {
+    const r = await client.send(
+      'Runtime.evaluate',
+      {
+        expression,
+        returnByValue: true,
+        awaitPromise: true,
+      },
+      timeout
+    );
     if (r.exceptionDetails) {
       throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
     }
@@ -185,7 +208,8 @@ async function main() {
 
   const navigate = async (path) => {
     consoleErrors = [];
-    const loaded = client.once('Page.loadEventFired');
+    // 万一 load 事件没等到，也不要让整个测试挂掉
+    const loaded = client.once('Page.loadEventFired', 15000).catch(() => null);
     await client.send('Page.navigate', { url: BASE + path });
     await loaded;
     await new Promise((r) => setTimeout(r, 350));
@@ -347,7 +371,113 @@ async function main() {
     `hostname = ${canonicalHost}`
   );
 
-  // ---------- 9. 404 页 ----------
+  // ---------- 9. 站内搜索 ----------
+  console.log('\n【站内搜索】');
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /** 在搜索页输入关键词，等结果出现 */
+  const searchFor = async (q) => {
+    await evaluate(`(() => {
+      // 先清空上一轮结果。否则轮询可能在旧结果还没被替换时就返回，
+      // 把上一次查询的结果当成这一次的 —— 这正是修好之前误报的原因。
+      const res = document.getElementById('search-results');
+      const st = document.getElementById('search-status');
+      if (res) res.innerHTML = '';
+      if (st) st.textContent = '';
+      const i = document.getElementById('search-input');
+      i.value = ${JSON.stringify(q)};
+      i.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()`);
+    for (let i = 0; i < 50; i++) {
+      const state = await evaluate(`(() => ({
+        count: document.querySelectorAll('.sr-item').length,
+        empty: document.querySelector('.sr-empty')?.textContent ?? '',
+        status: document.getElementById('search-status')?.textContent ?? '',
+        titles: [...document.querySelectorAll('.sr-title')].map(e => e.textContent.trim()),
+        hrefs: [...document.querySelectorAll('.sr-item')].map(a => a.getAttribute('href')),
+        marks: document.querySelectorAll('.sr-item mark').length,
+      }))()`);
+      // 有结果，或者出现了"没找到"的空状态
+      if (state.count > 0 || state.empty.includes('没有找到')) return state;
+      await sleep(100);
+    }
+    return { count: 0, empty: '', status: '', titles: [], hrefs: [], marks: 0 };
+  };
+
+  await navigate('/search/');
+  check('搜索页能打开', (await evaluate('document.title')).includes('搜索'));
+  check('搜索页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+  check(
+    '输入框自动聚焦',
+    await evaluate(`document.activeElement?.id === 'search-input'`),
+    await evaluate(`document.activeElement?.id ?? '（无）'`)
+  );
+
+  const r1 = await searchFor('Git');
+  check('搜到结果', r1.count > 0, `"Git" → ${r1.count} 条`);
+  check('最相关的结果排第一', r1.titles[0]?.includes('Git'), r1.titles.slice(0, 3).join(' / '));
+  check('关键词被高亮', r1.marks > 0, `${r1.marks} 处 <mark>`);
+
+  const r2 = await searchFor('速查');
+  check('能按标签/标题搜索', r2.count >= 2, `"速查" → ${r2.count} 条`);
+
+  const r3 = await searchFor('Git 速查');
+  check('多关键词同时命中', r3.count > 0, `"Git 速查" → ${r3.count} 条`);
+
+  const r4 = await searchFor('python 自动化');
+  check('跨字段多词搜索', r4.count > 0, `"python 自动化" → ${r4.count} 条`);
+
+  const r5 = await searchFor('zzz不存在的关键词zzz');
+  check('无结果时给出提示', r5.count === 0 && r5.empty.includes('没有找到'), `"${r5.empty.slice(0, 20)}…"`);
+
+  const r6 = await searchFor('--oneline');
+  check(
+    '代码块内容也能搜到',
+    r6.count > 0,
+    `"--oneline" → ${r6.count} 条（该字符串只出现在代码块里）`
+  );
+
+  // 结果链接必须带正确的部署前缀
+  const r7 = await searchFor('博客');
+  const badHref = r7.hrefs.find((h) => !h || !h.startsWith(basePath + '/'));
+  check('结果链接路径正确', r7.count > 0 && !badHref, badHref ?? r7.hrefs[0]);
+
+  // 结果链接真实可访问
+  if (r7.hrefs[0]) {
+    const target = r7.hrefs[0];
+    const loaded = client.once('Page.loadEventFired');
+    await client.send('Page.navigate', { url: new URL(target, BASE).href });
+    await loaded;
+    await sleep(250);
+    const ok = await evaluate(`!document.body.textContent.includes('这里什么都没有')`);
+    check('点击搜索结果能打开文章', ok, target);
+  }
+
+  // ?q= 深链
+  await navigate('/search/?q=Markdown');
+  await sleep(700);
+  const deep = await evaluate(`document.querySelectorAll('.sr-item').length`);
+  check('?q= 深链直接出结果', deep > 0, `/search/?q=Markdown → ${deep} 条`);
+
+  // 全局 / 快捷键（会触发整页跳转，所以要先监听 load 再按键）
+  await navigate('/');
+  const jumped = client.once('Page.loadEventFired', 10000).catch(() => null);
+  await evaluate(
+    `document.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }))`
+  );
+  await jumped;
+  await sleep(300);
+  let path = '';
+  try {
+    path = await evaluate(`location.pathname`, 8000);
+  } catch {
+    path = '（导航后取不到，按跳转处理）';
+  }
+  check('按 / 跳到搜索页', path === '' || path.includes('/search'), path);
+
+  // ---------- 10. 404 页 ----------
   console.log('\n【404】');
   await navigate('/404.html');
   const nf = await evaluate(`document.body.textContent.includes('404')`);
