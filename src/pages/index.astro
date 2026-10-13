@@ -95,7 +95,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
         recentProjects.length > 0 ? (
           <div class="project-grid">
             {recentProjects.map((p) => (
-              <a class="project-card" href={p.data.link ?? withBase(`/projects#${p.id}`)}>
+              <a class="project-card" href={withBase(`/projects/${p.id}`)}>
                 <div class="project-top">
                   <span class="project-status">{p.data.status}</span>
                 </div>

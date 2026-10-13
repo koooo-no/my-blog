@@ -8,7 +8,10 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "audit": "python3 tools/audit-site.py dist",
+    "verify": "astro build && python3 tools/audit-site.py dist",
+    "test:browser": "node tools/browser-test.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.2.0",
