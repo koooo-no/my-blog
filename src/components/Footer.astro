@@ -1,5 +1,6 @@
 ---
 import { SITE, SOCIALS } from '../consts';
+import { withBase } from '../utils/url';
 
 const year = new Date().getFullYear();
 const range = SITE.since === year ? `${year}` : `${SITE.since}–${year}`;
@@ -15,7 +16,7 @@ const range = SITE.since === year ? `${year}` : `${SITE.since}–${year}`;
     <nav class="socials" aria-label="联系方式">
       {
         SOCIALS.map((s) => (
-          <a href={s.href} rel="noopener noreferrer">{s.label}</a>
+          <a href={withBase(s.href)} rel="noopener noreferrer">{s.label}</a>
         ))
       }
     </nav>

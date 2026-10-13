@@ -31,6 +31,34 @@ jobs:
         with:
           version: 10
 
+      - name: 自动判断部署地址
+        id: paths
+        env:
+          CUSTOM_SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          set -e
+          REPO="${GITHUB_REPOSITORY#*/}"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+
+          if [ -n "$CUSTOM_SITE_URL" ]; then
+            # 已配置自定义域名（仓库 Settings → Variables 里加一个 SITE_URL）
+            echo "site_url=$CUSTOM_SITE_URL" >> "$GITHUB_OUTPUT"
+            echo "base_path=/" >> "$GITHUB_OUTPUT"
+          elif [ "$REPO" = "${OWNER}.github.io" ]; then
+            # 用户主页仓库，部署在根目录
+            echo "site_url=https://${OWNER}.github.io" >> "$GITHUB_OUTPUT"
+            echo "base_path=/" >> "$GITHUB_OUTPUT"
+          else
+            # 普通项目仓库，部署在子目录 /仓库名/
+            echo "site_url=https://${OWNER}.github.io" >> "$GITHUB_OUTPUT"
+            echo "base_path=/${REPO}" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "---- 本次部署 ----"
+          echo "仓库: $OWNER/$REPO"
+          echo "地址: $(grep site_url "$GITHUB_OUTPUT" | cut -d= -f2)"
+          echo "路径: $(grep base_path "$GITHUB_OUTPUT" | cut -d= -f2)"
+
       - name: 安装依赖
         run: pnpm install --no-frozen-lockfile
 
@@ -38,6 +66,8 @@ jobs:
         run: pnpm run build
         env:
           ASTRO_TELEMETRY_DISABLED: '1'
+          SITE_URL: ${{ steps.paths.outputs.site_url }}
+          BASE_PATH: ${{ steps.paths.outputs.base_path }}
 
       - name: 配置 Pages
         uses: actions/configure-pages@v5

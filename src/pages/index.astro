@@ -4,6 +4,7 @@ import EntryItem from '../components/EntryItem.astro';
 import { getCollection } from 'astro:content';
 import { SITE, HOME_LIMITS } from '../consts';
 import { sortByDate } from '../utils/date';
+import { withBase } from '../utils/url';
 
 const isPublished = (entry: { data: { draft: boolean } }) =>
   import.meta.env.PROD ? !entry.data.draft : true;
@@ -30,8 +31,8 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
       这里放我的文章、笔记和做过的东西。想到什么写什么，慢慢积累。
     </p>
     <div class="hero-actions">
-      <a class="btn btn-primary" href="/blog">开始阅读</a>
-      <a class="btn" href="/about">关于我</a>
+      <a class="btn btn-primary" href={withBase('/blog')}>开始阅读</a>
+      <a class="btn" href={withBase('/about')}>关于我</a>
     </div>
   </section>
 
@@ -39,14 +40,14 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     <section>
       <div class="section-head">
         <h2>最新文章</h2>
-        <a href="/blog">全部 {posts.length} 篇 →</a>
+        <a href={withBase('/blog')}>全部 {posts.length} 篇 →</a>
       </div>
       {
         recentPosts.length > 0 ? (
           <div class="list">
             {recentPosts.map((post) => (
               <EntryItem
-                href={`/blog/${post.id}`}
+                href={withBase(`/blog/${post.id}`)}
                 title={post.data.title}
                 description={post.data.description}
                 date={post.data.pubDate}
@@ -64,14 +65,14 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     <section>
       <div class="section-head">
         <h2>知识库</h2>
-        <a href="/notes">全部 {notes.length} 篇 →</a>
+        <a href={withBase('/notes')}>全部 {notes.length} 篇 →</a>
       </div>
       {
         recentNotes.length > 0 ? (
           <div class="list">
             {recentNotes.map((note) => (
               <EntryItem
-                href={`/notes/${note.id}`}
+                href={withBase(`/notes/${note.id}`)}
                 title={note.data.title}
                 description={note.data.description}
                 date={note.data.pubDate}
@@ -88,13 +89,13 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     <section>
       <div class="section-head">
         <h2>作品</h2>
-        <a href="/projects">全部 {projects.length} 个 →</a>
+        <a href={withBase('/projects')}>全部 {projects.length} 个 →</a>
       </div>
       {
         recentProjects.length > 0 ? (
           <div class="project-grid">
             {recentProjects.map((p) => (
-              <a class="project-card" href={p.data.link ?? `/projects#${p.id}`}>
+              <a class="project-card" href={p.data.link ?? withBase(`/projects#${p.id}`)}>
                 <div class="project-top">
                   <span class="project-status">{p.data.status}</span>
                 </div>

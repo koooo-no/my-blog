@@ -4,6 +4,7 @@ import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import EntryItem from '../../components/EntryItem.astro';
 import { sortByDate } from '../../utils/date';
+import { withBase } from '../../utils/url';
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const isPublished = (entry: { data: { draft: boolean } }) =>
@@ -16,11 +17,15 @@ export const getStaticPaths: GetStaticPaths = async () => {
   ]);
 
   const all = [
-    ...posts.filter(isPublished).map((e) => ({ ...e, kind: '博客' as const, href: `/blog/${e.id}` })),
-    ...notes.filter(isPublished).map((e) => ({ ...e, kind: '知识库' as const, href: `/notes/${e.id}` })),
+    ...posts
+      .filter(isPublished)
+      .map((e) => ({ ...e, kind: '博客' as const, href: withBase(`/blog/${e.id}`) })),
+    ...notes
+      .filter(isPublished)
+      .map((e) => ({ ...e, kind: '知识库' as const, href: withBase(`/notes/${e.id}`) })),
     ...projects
       .filter(isPublished)
-      .map((e) => ({ ...e, kind: '作品' as const, href: `/projects/${e.id}` })),
+      .map((e) => ({ ...e, kind: '作品' as const, href: withBase(`/projects/${e.id}`) })),
   ];
 
   const tags = new Set<string>();
@@ -41,7 +46,7 @@ const { tag, entries } = Astro.props;
 <BaseLayout title={`标签：${tag}`} description={`所有带有「${tag}」标签的内容。`}>
   <div class="container">
     <header class="page-head">
-      <p class="back"><a href="/tags">← 所有标签</a></p>
+      <p class="back"><a href={withBase('/tags')}>← 所有标签</a></p>
       <h1>#{tag}</h1>
       <p class="count">共 {entries.length} 条内容</p>
     </header>

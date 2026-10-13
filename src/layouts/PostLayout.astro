@@ -2,6 +2,7 @@
 // 文章页布局：标题、日期、标签、正文、上下篇导航
 import BaseLayout from './BaseLayout.astro';
 import { formatDate, readingTime, isoDate } from '../utils/date';
+import { withBase } from '../utils/url';
 
 interface Props {
   title: string;
@@ -64,7 +65,7 @@ const updated = updatedDate && updatedDate.valueOf() !== pubDate.valueOf() ? upd
         tags.length > 0 && (
           <div class="post-tags">
             {tags.map((t) => (
-              <a href={`/tags/${encodeURIComponent(t)}`} class="tag">
+              <a href={withBase(`/tags/${encodeURIComponent(t)}`)} class="tag">
                 {t}
               </a>
             ))}
@@ -80,7 +81,7 @@ const updated = updatedDate && updatedDate.valueOf() !== pubDate.valueOf() ? upd
     <nav class="post-nav" aria-label="文章导航">
       {
         prev ? (
-          <a href={prev.href} class="post-nav-item prev">
+          <a href={withBase(prev.href)} class="post-nav-item prev">
             <span class="post-nav-label">← 上一篇</span>
             <span class="post-nav-title">{prev.title}</span>
           </a>
@@ -90,7 +91,7 @@ const updated = updatedDate && updatedDate.valueOf() !== pubDate.valueOf() ? upd
       }
       {
         next && (
-          <a href={next.href} class="post-nav-item next">
+          <a href={withBase(next.href)} class="post-nav-item next">
             <span class="post-nav-label">下一篇 →</span>
             <span class="post-nav-title">{next.title}</span>
           </a>

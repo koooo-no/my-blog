@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { withBase } from '../../utils/url';
 
 const isPublished = (entry: { data: { draft: boolean } }) =>
   import.meta.env.PROD ? !entry.data.draft : true;
@@ -42,7 +43,7 @@ const tags = [...count.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompa
       ) : (
         <div class="tag-cloud">
           {tags.map(([tag, n]) => (
-            <a href={`/tags/${encodeURIComponent(tag)}`} class="tag-item">
+            <a href={withBase(`/tags/${encodeURIComponent(tag)}`)} class="tag-item">
               <span class="tag-name">{tag}</span>
               <span class="tag-meta">
                 {n}

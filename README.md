@@ -120,23 +120,47 @@ export const SOCIALS = [ ... ];  // 页脚的联系方式
 2. 仓库 → **Settings → Pages** → Source 选 **GitHub Actions**
 3. 推一次代码，Actions 会自动构建并发布
 
-**两种方案都要做一件事**：打开 `astro.config.mjs`，把 `SITE_URL` 改成你实际的网址。
+**部署地址会自动处理，你不用改任何配置。**
 
-```js
-export const SITE_URL = 'https://你的域名.com';
-```
+- **Vercel / Cloudflare Pages / Netlify** → 部署在根目录，平台自动识别
+- **GitHub Pages** → `.github/workflows/deploy.yml` 会自动判断：
+  - 仓库名是 `<你的用户名>.github.io` → 部署在根目录
+  - 其他仓库名 → 自动带上子路径 `/仓库名/`
 
-这一步影响 RSS、站点地图和社交分享链接，上线前一定要改。
+  > 这一点很重要。GitHub Pages 的项目站点地址是 `用户名.github.io/仓库名/`，
+  > 如果构建时不加子路径前缀，CSS、图片和导航会全部 404。工作流已经处理好了。
 
 ### 绑定自己的域名
 
-在托管平台里添加域名，然后到域名商（阿里云、腾讯云、Cloudflare 等）添加 DNS 记录：
+**第一步，告诉站点你的域名。**
+
+GitHub Pages：仓库 → **Settings → Secrets and variables → Actions → Variables → New repository variable**
+
+| Name | Value |
+| --- | --- |
+| `SITE_URL` | `https://blog.你的域名.com` |
+
+Vercel / Cloudflare Pages：在平台后台的环境变量里加同名的 `SITE_URL`。
+
+加了之后，构建会自动切换到「根目录 + 你的域名」。这个值决定 RSS、站点地图和社交分享卡片里的地址，
+不设置的话分享出去的链接会指向 `example.com`。
+
+**第二步，配 DNS。**
+
+在托管平台里添加域名，然后到域名商（阿里云、腾讯云、Cloudflare 等）添加记录：
 
 | 类型 | 名称 | 值 |
 | --- | --- | --- |
 | CNAME | `blog`（或 `@` 表示根域名） | 托管平台给你的地址 |
 
-配好后等几分钟到几小时生效，平台会自动签发 HTTPS 证书。
+GitHub Pages 还需要在仓库 → Settings → Pages → Custom domain 里填一次域名，
+平台会自动签发 HTTPS 证书。等几分钟到几小时生效。
+
+**第三步，本地想验证子路径效果**（可选）：
+
+```bash
+SITE_URL=https://用户名.github.io BASE_PATH=/仓库名 pnpm build
+```
 
 ---
 
@@ -144,7 +168,8 @@ export const SITE_URL = 'https://你的域名.com';
 
 ```text
 my-blog/
-├── astro.config.mjs        ← 站点配置（上线前改 SITE_URL）
+├── astro.config.mjs        ← 站点配置（部署地址自动注入，一般不用动）
+├── .github/workflows/       ← GitHub Pages 自动部署
 ├── src/
 │   ├── consts.ts           ← 站名、导航、联系方式
 │   ├── content.config.ts   ← 内容字段定义
@@ -162,6 +187,10 @@ my-blog/
 ├── public/                 ← 图片等静态文件
 └── dist/                   ← 构建产物（自动生成）
 ```
+
+> `src/utils/url.ts` 负责给站内链接加子路径前缀。文章里写链接时用普通的 `/blog/xxx` 就行，
+> 页面组件会自动补全。但**直接写在 Markdown 正文里的站内链接**不会自动加前缀 ——
+> 如果你打算部署在子目录（github.io/仓库名），正文里尽量用完整网址，或者干脆绑定自己的域名。
 
 **放图片**：把图片丢进 `public/images/`，文章里这样引用：
 

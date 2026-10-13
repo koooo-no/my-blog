@@ -1,5 +1,6 @@
 ---
 import { shortDate } from '../utils/date';
+import { withBase } from '../utils/url';
 
 interface Props {
   href: string;
@@ -28,7 +29,7 @@ const { href, title, description, date, tags = [], badge, showDate = true } = As
         tags.length > 0 && (
           <span class="entry-tags">
             {tags.slice(0, 4).map((t) => (
-              <a href={`/tags/${encodeURIComponent(t)}`} class="tag">{t}</a>
+              <a href={withBase(`/tags/${encodeURIComponent(t)}`)} class="tag">{t}</a>
             ))}
           </span>
         )

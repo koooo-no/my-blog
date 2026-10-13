@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import EntryItem from '../../components/EntryItem.astro';
 import { getCollection } from 'astro:content';
 import { sortByDate } from '../../utils/date';
+import { withBase } from '../../utils/url';
 
 const isPublished = (entry: { data: { draft: boolean } }) =>
   import.meta.env.PROD ? !entry.data.draft : true;
@@ -37,7 +38,7 @@ const tags = [...tagCount.entries()].sort((a, b) => b[1] - a[1]);
       tags.length > 0 && (
         <div class="tag-bar">
           {tags.map(([t, n]) => (
-            <a href={`/tags/${encodeURIComponent(t)}`} class="tag">
+            <a href={withBase(`/tags/${encodeURIComponent(t)}`)} class="tag">
               {t} <span class="tag-count">{n}</span>
             </a>
           ))}
@@ -55,7 +56,7 @@ const tags = [...tagCount.entries()].sort((a, b) => b[1] - a[1]);
             <div class="list">
               {byYear.get(year)!.map((post) => (
                 <EntryItem
-                  href={`/blog/${post.id}`}
+                  href={withBase(`/blog/${post.id}`)}
                   title={post.data.title}
                   description={post.data.description}
                   date={post.data.pubDate}

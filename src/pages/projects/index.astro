@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { withBase } from '../../utils/url';
 
 const isPublished = (entry: { data: { draft: boolean } }) =>
   import.meta.env.PROD ? !entry.data.draft : true;
@@ -27,7 +28,7 @@ const projects = (await getCollection('projects'))
       ) : (
         <div class="grid">
           {projects.map((p) => (
-            <a class="card" href={`/projects/${p.id}`}>
+            <a class="card" href={withBase(`/projects/${p.id}`)}>
               <div class="card-top">
                 <span class="status">{p.data.status}</span>
                 {p.data.featured && <span class="star">精选</span>}
