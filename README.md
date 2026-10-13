@@ -220,3 +220,64 @@ my-blog/
 - 评论（Giscus，基于 GitHub Discussions）
 - 访问统计（Umami / Google Analytics）
 - 图片自动压缩优化
+
+---
+
+## 八、遇到问题怎么办
+
+### 报错 `ERR_PNPM_IGNORED_BUILDS`
+
+```text
+Ignored build scripts: esbuild@..., sharp@...
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+```
+
+pnpm 10 之后默认不允许依赖包运行安装脚本，而 `esbuild` 和 `sharp` 必须运行，
+否则 `pnpm build` 会直接失败。
+
+根目录的 `pnpm-workspace.yaml` 已经处理好了，**正常情况下你不会遇到这个错误**。
+如果换了环境又碰到，确认这个文件里有这两段：
+
+```yaml
+onlyBuiltDependencies:   # pnpm 10 读这个
+  - esbuild
+  - sharp
+
+allowBuilds:             # pnpm 11+ 读这个
+  esbuild: true
+  sharp: true
+```
+
+### 构建出来的页面没有样式 / 链接 404
+
+说明部署路径不对。GitHub Pages 的项目站点地址是 `用户名.github.io/仓库名/`，
+需要带上子路径。工作流会自动处理；如果你是手动构建，用：
+
+```bash
+SITE_URL=https://用户名.github.io BASE_PATH=/仓库名 pnpm build
+```
+
+### 分享出去的链接指向 example.com
+
+没有设置 `SITE_URL`。参考第五节的「绑定自己的域名」，
+在托管平台里加一个 `SITE_URL` 环境变量或仓库变量。
+
+### 本地命令报 `Cannot find module @rollup/rollup-darwin-arm64`
+
+Node 版本和 `rollup` 原生模块不匹配。删掉 `node_modules` 重装：
+
+```bash
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+```
+
+---
+
+## 九、给 AI 助手的说明
+
+如果你把这个项目交给 AI 助手继续开发，告诉它：
+
+- 内容全部在 `src/content/` 下，用 Markdown + frontmatter
+- 所有站内链接必须经过 `src/utils/url.ts` 的 `withBase()`，否则子路径部署会 404
+- 部署地址通过环境变量 `SITE_URL` / `BASE_PATH` 注入，不要写死
+- 改完必须跑 `pnpm build`，并确认 GitHub Pages 子路径场景（`BASE_PATH=/仓库名`）下链接正确

@@ -1,5 +1,20 @@
-# pnpm 配置
-# 允许 esbuild 和 sharp 运行安装脚本，否则 Astro 无法构建
+# ============================================================
+#  pnpm 配置
+#
+#  esbuild 和 sharp 需要在安装时运行构建脚本，否则 `pnpm build` 会
+#  直接失败（报 ERR_PNPM_IGNORED_BUILDS）。pnpm 10 起默认拦截这些脚本，
+#  必须显式放行。
+#
+#  两个键名都写上是故意的：
+#    - onlyBuiltDependencies  是 pnpm 10 的写法
+#    - allowBuilds            是 pnpm 11+ 的写法
+#  不同版本的 pnpm 各读各的，托管平台用什么版本都不会挂。
+# ============================================================
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+
 allowBuilds:
   esbuild: true
   sharp: true
