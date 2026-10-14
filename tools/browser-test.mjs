@@ -190,6 +190,26 @@ async function main() {
     if (p.entry.level === 'error') consoleErrors.push(p.entry.text);
   });
 
+  /**
+   * 统一设置媒体特性。
+   *
+   * 关键是要打开 prefers-reduced-motion: reduce —— 站点 CSS 里有一条
+   * 对应规则会把 transition-duration 压到 0.01ms。不这么做的话，
+   * 读 getComputedStyle 时可能正好落在 200ms 的颜色过渡中间，
+   * 拿到 rgb(15,16,19) 这种中间值，测试就会随机失败。
+   *
+   * 注意 setEmulatedMedia 是整体替换，所以每次都要把两项一起给上。
+   */
+  const setMedia = (colorScheme = 'light', reducedMotion = 'reduce') =>
+    client.send('Emulation.setEmulatedMedia', {
+      features: [
+        { name: 'prefers-color-scheme', value: colorScheme },
+        { name: 'prefers-reduced-motion', value: reducedMotion },
+      ],
+    });
+
+  await setMedia('light');
+
   const evaluate = async (expression, timeout = 15000) => {
     const r = await client.send(
       'Runtime.evaluate',
@@ -274,17 +294,13 @@ async function main() {
   check('刷新后保持深色', persisted === 'dark', `data-theme = ${persisted}`);
 
   // ---------- 5. 跟随系统偏好 ----------
-  await client.send('Emulation.setEmulatedMedia', {
-    features: [{ name: 'prefers-color-scheme', value: 'dark' }],
-  });
+  await setMedia('dark');
   await evaluate(`localStorage.removeItem('theme')`);
   await navigate('/');
   const sysDark = await evaluate(`document.documentElement.getAttribute('data-theme')`);
   check('系统深色时自动深色', sysDark === 'dark', `data-theme = ${sysDark}`);
 
-  await client.send('Emulation.setEmulatedMedia', {
-    features: [{ name: 'prefers-color-scheme', value: 'light' }],
-  });
+  await setMedia('light');
   await evaluate(`localStorage.removeItem('theme')`);
   await navigate('/');
   const sysLight = await evaluate(`document.documentElement.getAttribute('data-theme')`);

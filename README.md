@@ -139,9 +139,28 @@ export const SOCIALS = [ ... ];  // 页脚的联系方式
   > 这一点很重要。GitHub Pages 的项目站点地址是 `用户名.github.io/仓库名/`，
   > 如果构建时不加子路径前缀，CSS、图片和导航会全部 404。工作流已经处理好了。
 
+**站点地址（RSS / 站点地图 / 分享卡片里的网址）同样是自动的**，从平台注入的环境变量读取：
+
+| 平台 | 环境变量 |
+| --- | --- |
+| Vercel | `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` |
+| Cloudflare Pages | `CF_PAGES_URL` |
+| Netlify | `DEPLOY_PRIME_URL` |
+| GitHub Pages | 工作流自动计算 |
+
+所以**不买域名、直接用平台送的免费网址也能正确工作**，不需要"先部署一次拿到网址再改配置"。
+构建时日志第一行会打印实际使用的地址：
+
+```
+[astro] 站点地址: https://my-blog.vercel.app  (来源: VERCEL_PROJECT_PRODUCTION_URL)
+[astro] 部署路径: /
+```
+
 ### 绑定自己的域名
 
-**第一步，告诉站点你的域名。**
+**不买域名也能用**，这一步是可选的。想要 `blog.你的名字.com` 这样的网址再做。
+
+**第一步，告诉站点你的域名**（手动指定优先级最高，会覆盖上面的自动识别）。
 
 GitHub Pages：仓库 → **Settings → Secrets and variables → Actions → Variables → New repository variable**
 
