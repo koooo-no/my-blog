@@ -20,6 +20,7 @@ export const NAV = [
   { label: '首页', href: '/' },
   { label: '博客', href: '/blog' },
   { label: '知识库', href: '/notes' },
+  { label: '量化', href: '/quant' },
   { label: '作品', href: '/projects' },
   { label: '关于', href: '/about' },
 ];

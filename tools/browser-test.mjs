@@ -477,7 +477,71 @@ async function main() {
   }
   check('按 / 跳到搜索页', path === '' || path.includes('/search'), path);
 
-  // ---------- 10. 404 页 ----------
+  // ---------- 10. 量化看板 ----------
+  console.log('\n【量化看板】');
+
+  await navigate('/quant/');
+  check('看板页能打开', (await evaluate('document.title')).includes('量化'));
+  check('看板无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+
+  const qIndex = await evaluate(`(() => {
+    const rows = [...document.querySelectorAll('table tbody tr')];
+    const polys = [...document.querySelectorAll('polyline')];
+    return {
+      rows: rows.length,
+      strategies: rows.filter(r => !r.className.includes('bench-row')).length,
+      polylines: polys.length,
+      // 每条折线都得有真实的坐标点，不是空字符串
+      pointsOk: polys.every(p => (p.getAttribute('points') || '').split(' ').filter(Boolean).length > 100),
+      disclaimer: !!document.querySelector('.disclaimer'),
+    };
+  })()`);
+  check('对比表包含策略和基准', qIndex.strategies === 2, `${qIndex.strategies} 个策略 + 基准`);
+  check('净值曲线已渲染', qIndex.polylines >= 4 && qIndex.pointsOk, `${qIndex.polylines} 条折线`);
+  check('有免责声明', qIndex.disclaimer);
+
+  await navigate('/quant/momentum-rotation/');
+  check('详情页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+
+  const qDetail = await evaluate(`(() => {
+    const svgs = [...document.querySelectorAll('svg')];
+    const heat = document.querySelectorAll('rect').length;
+    const metrics = document.querySelectorAll('.metric').length;
+    const trades = document.querySelectorAll('table tbody tr').length;
+    const circles = document.querySelectorAll('circle').length;
+    return { charts: svgs.length, heat, metrics, trades, circles };
+  })()`);
+  check('三个图表都在（曲线/回撤/热力图）', qDetail.charts >= 6, `${qDetail.charts} 个 svg`);
+  check('指标卡数量正确', qDetail.metrics >= 11, `${qDetail.metrics} 个指标`);
+  check('月度热力图渲染', qDetail.heat >= 36, `${qDetail.heat} 个格子（3 年 × 12 月）`);
+  check('交易记录表有数据', qDetail.trades > 0, `${qDetail.trades} 行`);
+
+  // 图表在手机上不能溢出
+  await client.send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await navigate('/quant/momentum-rotation/');
+  const qOverflow = await evaluate(
+    `({ scroll: document.documentElement.scrollWidth, view: window.innerWidth })`
+  );
+  check(
+    '手机上看板无横向溢出',
+    qOverflow.scroll <= qOverflow.view + 1,
+    `scrollWidth=${qOverflow.scroll} innerWidth=${qOverflow.view}`
+  );
+  await client.send('Emulation.clearDeviceMetricsOverride');
+
+  // 导航高亮
+  await navigate('/quant/');
+  const qActive = await evaluate(
+    `[...document.querySelectorAll('.nav-link.active')].map(a => a.textContent.trim()).join(',')`
+  );
+  check('导航高亮"量化"', qActive === '量化', `高亮项 = ${qActive}`);
+
+  // ---------- 11. 404 页 ----------
   console.log('\n【404】');
   await navigate('/404.html');
   const nf = await evaluate(`document.body.textContent.includes('404')`);

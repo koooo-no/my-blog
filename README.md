@@ -178,7 +178,7 @@ SITE_URL=https://用户名.github.io BASE_PATH=/仓库名 pnpm build
 ```text
 my-blog/
 ├── astro.config.mjs        ← 站点配置（部署地址自动注入，一般不用动）
-├── .github/workflows/       ← GitHub Pages 自动部署
+├── .github/workflows/      ← GitHub Pages 自动部署
 ├── src/
 │   ├── consts.ts           ← 站名、导航、联系方式
 │   ├── content.config.ts   ← 内容字段定义
@@ -187,12 +187,16 @@ my-blog/
 │   │   ├── notes/          ← 知识库笔记
 │   │   ├── projects/       ← 作品
 │   │   └── pages/          ← 关于我等单页
-│   ├── components/         ← 页面组件
+│   ├── data/
+│   │   └── quant.json      ← ★ 量化看板数据（换数据只改这个）
+│   ├── components/
+│   │   └── charts/         ← 手写 SVG 图表组件
 │   ├── layouts/            ← 页面骨架
 │   ├── pages/              ← 路由（一般不用动）
 │   ├── styles/global.css   ← 全局样式、配色
 │   └── utils/              ← 小工具函数
 ├── templates/              ← 写作模板（不会被发布）
+├── tools/                  ← 自检工具和数据生成脚本
 ├── public/                 ← 图片等静态文件
 └── dist/                   ← 构建产物（自动生成）
 ```
@@ -295,7 +299,118 @@ node tools/browser-test.mjs --url http://127.0.0.1:4322/my-blog
 
 ---
 
-## 九、遇到问题怎么办
+## 九、量化看板
+
+`/quant` 是一个数据驱动的看板，用来展示回测结果。**它同样没有后端** ——
+所有图表在构建时算好并渲染成静态 SVG，页面上没有一个字节的图表库。
+
+### 有什么
+
+- **对比表**：多个策略放在一起比年化、超额、回撤、夏普
+- **净值曲线**：策略 vs 基准，纵轴是相对起点的累计收益
+- **回撤图**：从历史高点回落的幅度，自动标出最大回撤的位置
+- **月度收益热力图**：行是年份，列是 1–12 月，颜色深浅表示收益高低
+- **指标卡**：年化、超额、最大回撤、夏普、卡玛、波动率、胜率、盈亏比、交易笔数、最长回撤天数、累计收益
+- **交易记录表**
+- 每页顶部有**免责声明**（见下方「重要提醒」）
+
+### 怎么换成你自己的数据
+
+**只需要改一个文件：`src/data/quant.json`**，页面代码完全不用动。
+
+```jsonc
+{
+  "updated": "2026-10-09",          // 数据更新日期
+  "benchmarkName": "沪深300",
+  "currency": "CNY",
+  "strategies": [
+    {
+      "id": "momentum-rotation",     // 决定网址：/quant/momentum-rotation/
+      "name": "动量轮动",
+      "subtitle": "行业 ETF 动量 + 波动率过滤",
+      "description": "策略说明……",
+      "status": "研究中",
+      "frequency": "日频",
+      "universe": "行业 ETF（18 只）",
+      "tags": ["动量", "轮动"],
+
+      // 下面三个数组长度必须一致，一一对应
+      "dates":      ["2024-01-02", "..."],
+      "equity":     [1.0, 1.008, "..."],   // 策略净值，起点 1.0
+      "benchmark":  [1.0, 1.002, "..."],   // 基准净值，起点 1.0
+
+      "metrics": {
+        "totalReturn": 0.532,            // 小数，0.532 = 53.2%
+        "annualReturn": 0.160,
+        "benchmarkTotalReturn": 0.138,
+        "benchmarkAnnualReturn": 0.046,
+        "excessAnnualReturn": 0.113,
+        "volatility": 0.174,
+        "maxDrawdown": -0.153,           // 负数
+        "maxDrawdownDays": 195,
+        "sharpe": 0.804,
+        "calmar": 1.044,
+        "winRate": 0.52,
+        "profitFactor": 1.163,
+        "tradeCount": 412,
+        "turnover": 3.4
+      },
+
+      "monthly": [ { "y": 2024, "m": 1, "r": 0.023 } ],
+      "trades":  [ { "date": "2024-03-05", "symbol": "600519", "name": "贵州茅台",
+                     "side": "买入", "price": 1680.5, "qty": 100, "pnl": null } ]
+    }
+  ]
+}
+```
+
+**你的量化脚本要做的事情**：跑完回测 → 按这个结构写出 `src/data/quant.json` → 提交。
+
+仓库里有一个示例生成脚本 `tools/make-quant-demo.py`，可以看它是怎么算这些指标的
+（年化、夏普、卡玛、最大回撤、最长回撤天数……），改成读你自己的回测输出即可。
+
+### 想调整显示
+
+- **显示哪些指标**：改 `src/utils/quant.ts` 里的 `METRIC_VIEW`
+- **颜色、布局**：改 `src/pages/quant/index.astro` 和 `[id].astro` 的 `<style>`
+- **要不要在导航里**：改 `src/consts.ts` 的 `NAV`
+
+### 图表的实现
+
+三个图表组件都是手写的 SVG，在 `src/components/charts/` 下：
+
+| 组件 | 作用 |
+| --- | --- |
+| `EquityChart.astro` | 净值曲线（多条线 + 基准虚线） |
+| `DrawdownChart.astro` | 回撤面积图 |
+| `MonthlyHeatmap.astro` | 月度收益热力图 |
+
+不引入 ECharts / Chart.js 的原因：这个项目目前**一个 JS 文件都不产出**，
+所有脚本都内联在 HTML 里。为了保证加载速度和零维护成本，图表就自己画了。
+
+坐标轴刻度用的是"整齐数字"算法（`src/utils/format.ts` 的 `niceTicks`），
+会向下/向上取整把范围撑到能覆盖全部数据 —— 这一步不做的话曲线会画出界。
+
+> 审计工具里有一条专门检查这个：`pnpm audit` 会校验所有 `<polyline>` 和 `<circle>`
+> 的坐标是否在 SVG 画布内。这个检查真实抓到过一次曲线出界的 bug。
+
+### ⚠️ 重要提醒
+
+**如果这个看板要公开，请先把这几件事想清楚：**
+
+1. **免责声明不要删。** 两处都写了，保留它。
+   公开提供投资建议、展示收益招揽客户，在国内可能涉及证券投资咨询牌照，
+   具体请自行确认。本站的声明是"个人研究记录、不构成投资建议"。
+2. **API 密钥绝对不能进这个仓库。** 静态站的前端代码人人可见，
+   `git push` 到公开仓库就等于公开密钥。密钥只放本地环境变量或 GitHub Secrets。
+3. **策略泄露。** 公开仓库 = 公开策略，alpha 会衰减。
+   如果只想自己或特定的人看，参考 [部署指南.md](部署指南.md) 里的「只给特定的人看」。
+4. **数据版权。** Wind / 聚宽 / Tushare 等数据源的授权条款通常禁止公开再分发，
+   把行情明细挂到公开网站上可能违反协议。指标和曲线一般没问题。
+
+---
+
+## 十、遇到问题怎么办
 
 ### 报错 `ERR_PNPM_IGNORED_BUILDS`
 
@@ -345,7 +460,7 @@ pnpm install
 
 ---
 
-## 十、给 AI 助手的说明
+## 十一、给 AI 助手的说明
 
 如果你把这个项目交给 AI 助手继续开发，告诉它：
 

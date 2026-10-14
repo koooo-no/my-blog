@@ -28,6 +28,11 @@ from collections import defaultdict
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+# 图表几何校验用的正则
+SVGSVG_RE = re.compile(r'<svg[^>]*viewBox="([^"]+)"[^>]*>(.*?)</svg>', re.S)
+POLYLINE_RE = re.compile(r'<polyline[^>]*points="([^"]*)"')
+CIRCLE_RE = re.compile(r'<circle[^>]*\bcx="([-\d.]+)"[^>]*\bcy="([-\d.]+)"')
+
 
 def load_pages(root: Path):
     return sorted(root.rglob("*.html"))
@@ -120,6 +125,46 @@ def main():
             if 'alt="' not in tag:
                 problems["图片缺少 alt"].append((rel, tag[:70]))
 
+        # ---- 图表几何是否超出画布 ----
+        # 坐标轴刻度算错时，曲线会被画到 SVG 画布外面，页面看着像是"对的"，
+        # 只有量坐标才发现。所以这里逐个点校验。
+        for vb, inner in SVGSVG_RE.findall(text):
+            dims = [n for n in re.split(r"[\s,]+", vb.strip()) if n]
+            if len(dims) != 4:
+                continue
+            try:
+                vw, vh = float(dims[2]), float(dims[3])
+            except ValueError:
+                continue
+
+            over = None
+            for pts in POLYLINE_RE.findall(inner):
+                for pair in pts.split():
+                    if "," not in pair:
+                        continue
+                    try:
+                        px, py = (float(x) for x in pair.split(",")[:2])
+                    except ValueError:
+                        continue
+                    if not (-0.5 <= px <= vw + 0.5 and -0.5 <= py <= vh + 0.5):
+                        over = f"<polyline> 点 ({px:g},{py:g}) 超出 {vw:g}×{vh:g}"
+                        break
+                if over:
+                    break
+
+            if not over:
+                for cx, cy in CIRCLE_RE.findall(inner):
+                    try:
+                        x, y = float(cx), float(cy)
+                    except ValueError:
+                        continue
+                    if not (-0.5 <= x <= vw + 0.5 and -0.5 <= y <= vh + 0.5):
+                        over = f"<circle> 圆心 ({x:g},{y:g}) 超出 {vw:g}×{vh:g}"
+                        break
+
+            if over:
+                problems["图表超出画布"].append((rel, over))
+
         # ---- 链接 ----
         for attr, target in re.findall(r'\b(href|src)="([^"]*)"', text):
             if not target:
@@ -163,6 +208,7 @@ def main():
         "锚点不存在",
         "图片不存在",
         "图片缺少 alt",
+        "图表超出画布",
         "重复 id",
         "h1 数量异常",
         "缺少 title",

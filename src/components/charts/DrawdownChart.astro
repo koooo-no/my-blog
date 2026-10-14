@@ -1,0 +1,159 @@
+---
+/**
+ * 回撤图（纯 SVG）
+ * 显示从历史最高点回落的幅度，恒为 0 或负值。
+ */
+import { pct, tinyDate, niceTicks } from '../../utils/format';
+
+interface Props {
+  dates: string[];
+  values: number[];
+  height?: number;
+}
+
+const { dates, values, height = 200 } = Astro.props;
+
+const W = 820;
+const PAD = { top: 16, right: 14, bottom: 30, left: 56 };
+const plotW = W - PAD.left - PAD.right;
+const plotH = height - PAD.top - PAD.bottom;
+
+// 逐日计算回撤
+const drawdown: number[] = [];
+let peak = values[0] ?? 1;
+for (const v of values) {
+  if (v > peak) peak = v;
+  drawdown.push((v / peak - 1) * 100);
+}
+
+const minDd = Math.min(...drawdown, -0.01);
+const n = dates.length;
+
+// 底边也要对齐整齐刻度，否则 -20% 这条刻度会画到图外面去
+const yTicks = niceTicks(minDd, 0, 4);
+const bottom = yTicks[0];
+
+const x = (i: number) => PAD.left + (n <= 1 ? 0 : (i / (n - 1)) * plotW);
+const y = (v: number) => PAD.top + (v / bottom) * plotH;
+
+const xTickIdx = Array.from({ length: 5 }, (_, i) => Math.round(((n - 1) * i) / 4));
+
+// 面积路径：从 0 轴出发，沿回撤曲线走一遍，再回到 0 轴
+const areaPath =
+  `M ${x(0).toFixed(1)},${y(0).toFixed(1)} ` +
+  drawdown.map((v, i) => `L ${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ') +
+  ` L ${x(n - 1).toFixed(1)},${y(0).toFixed(1)} Z`;
+
+const maxDd = Math.min(...drawdown);
+const maxDdIdx = drawdown.indexOf(maxDd);
+---
+
+<figure class="chart-figure">
+  <svg
+    viewBox={`0 0 ${W} ${height}`}
+    class="chart"
+    role="img"
+    aria-label={`回撤曲线，最大回撤 ${pct(maxDd / 100, 1)}`}
+  >
+    <g class="grid">
+      {
+        yTicks.map((t) => (
+          <>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} />
+            <text x={PAD.left - 10} y={y(t) + 4} class="axis-label" text-anchor="end">
+              {pct(t / 100, 0)}
+            </text>
+          </>
+        ))
+      }
+    </g>
+
+    <path d={areaPath} class="dd-area" />
+    <line class="zero-line" x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} />
+
+    <!-- 最大回撤位置标记 -->
+    <circle cx={x(maxDdIdx)} cy={y(maxDd)} r="3.5" class="dd-dot" />
+
+    <g class="x-axis">
+      {
+        xTickIdx.map((i, k) => (
+          <text
+            x={x(i)}
+            y={height - 9}
+            class="axis-label"
+            text-anchor={k === 0 ? 'start' : k === 4 ? 'end' : 'middle'}
+          >
+            {tinyDate(dates[i])}
+          </text>
+        ))
+      }
+    </g>
+  </svg>
+
+  <figcaption class="dd-caption">
+    最大回撤 <strong>{pct(maxDd / 100, 1)}</strong>
+    <span class="dim">（{dates[maxDdIdx]}）</span>
+  </figcaption>
+</figure>
+
+<style>
+  .chart-figure {
+    margin: 0;
+  }
+
+  .chart {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+
+  .grid line {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .zero-line {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+  }
+
+  .axis-label {
+    fill: var(--text-mute);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dd-area {
+    fill: rgba(190, 60, 50, 0.14);
+    stroke: rgba(190, 60, 50, 0.75);
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .dd-dot {
+    fill: rgba(190, 60, 50, 0.95);
+  }
+
+  .dd-caption {
+    margin-top: 10px;
+    padding-left: 56px;
+    font-size: 0.84rem;
+    color: var(--text-soft);
+  }
+
+  .dd-caption strong {
+    color: var(--text);
+  }
+
+  .dim {
+    color: var(--text-mute);
+  }
+
+  @media (max-width: 560px) {
+    .dd-caption {
+      padding-left: 0;
+    }
+  }
+</style>

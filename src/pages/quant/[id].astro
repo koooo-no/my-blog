@@ -1,0 +1,421 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EquityChart from '../../components/charts/EquityChart.astro';
+import DrawdownChart from '../../components/charts/DrawdownChart.astro';
+import MonthlyHeatmap from '../../components/charts/MonthlyHeatmap.astro';
+import { quant, METRIC_VIEW } from '../../utils/quant';
+import type { QuantStrategy } from '../../utils/quant';
+import { withBase } from '../../utils/url';
+import { pct, num } from '../../utils/format';
+
+export async function getStaticPaths() {
+  return quant.strategies.map((strategy) => ({
+    params: { id: strategy.id },
+    props: { strategy },
+  }));
+}
+
+interface Props {
+  strategy: QuantStrategy;
+}
+
+const { strategy: s } = Astro.props;
+const m = s.metrics;
+
+function formatMetric(v: number, kind: string): string {
+  if (kind === 'pct' || kind === 'pctAbs') return pct(v, 1, kind === 'pct');
+  if (kind === 'int') return String(Math.round(v));
+  return num(v, 2);
+}
+
+function toneOf(v: number, kind: string): string {
+  if (kind !== 'pct' && kind !== 'pctAbs') return '';
+  return v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+}
+---
+
+<BaseLayout
+  title={`${s.name} · 量化研究`}
+  description={s.description}
+  noindex
+>
+  <div class="container">
+    <p class="back"><a href={withBase('/quant')}>← 返回量化研究</a></p>
+
+    <header class="page-head">
+      <div class="head-row">
+        <div>
+          <h1>{s.name}</h1>
+          <p class="subtitle">{s.subtitle}</p>
+        </div>
+        <span class="status">{s.status}</span>
+      </div>
+
+      <div class="meta">
+        <span>{s.dates[0]} ~ {s.dates[s.dates.length - 1]}</span>
+        <span aria-hidden="true">·</span>
+        <span>{s.dates.length} 个交易日</span>
+        <span aria-hidden="true">·</span>
+        <span>{s.frequency}</span>
+        <span aria-hidden="true">·</span>
+        <span>{s.universe}</span>
+      </div>
+
+      {
+        s.tags.length > 0 && (
+          <div class="tags">
+            {s.tags.map((t) => (
+              <span class="tag">{t}</span>
+            ))}
+          </div>
+        )
+      }
+    </header>
+
+    <aside class="disclaimer" role="note">
+      <strong>免责声明</strong>
+      <p>
+        本文档为个人研究记录，<strong>不构成任何投资建议</strong>。以下全部为历史回测模拟结果，
+        不代表未来表现；除特别说明外未计入交易成本、冲击成本与流动性限制。据此操作，风险自负。
+      </p>
+    </aside>
+
+    <section class="metrics">
+      <h2>关键指标</h2>
+      <dl class="metric-grid">
+        {
+          METRIC_VIEW.map((mv) => {
+            const raw = m[mv.key];
+            const value = typeof raw === 'number' ? raw : 0;
+            return (
+              <div class="metric">
+                <dt>
+                  {mv.label}
+                  {mv.hint && <span class="hint">{mv.hint}</span>}
+                </dt>
+                <dd class:list={[toneOf(value, mv.kind)]}>{formatMetric(value, mv.kind)}</dd>
+              </div>
+            );
+          })
+        }
+        <div class="metric">
+          <dt>最长回撤<span class="hint">天数</span></dt>
+          <dd>{m.maxDrawdownDays} 天</dd>
+        </div>
+        <div class="metric">
+          <dt>累计收益</dt>
+          <dd class:list={[toneOf(m.totalReturn, 'pct')]}>{pct(m.totalReturn, 1, true)}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="block">
+      <h2>净值曲线</h2>
+      <p class="note">
+        纵轴为相对起点的累计收益。虚线为基准（{quant.benchmarkName}）。
+      </p>
+      <EquityChart
+        dates={s.dates}
+        height={300}
+        lines={[
+          { name: `${s.name}（策略）`, values: s.equity, kind: 'main' },
+          { name: quant.benchmarkName, values: s.benchmark, kind: 'bench' },
+        ]}
+      />
+    </section>
+
+    <section class="block">
+      <h2>回撤</h2>
+      <p class="note">从历史最高点回落的幅度。红点标出最大回撤发生的位置。</p>
+      <DrawdownChart dates={s.dates} values={s.equity} height={200} />
+    </section>
+
+    <section class="block">
+      <h2>月度收益</h2>
+      <p class="note">按自然月聚合。留空的是回测区间没有覆盖到的月份。</p>
+      <MonthlyHeatmap monthly={s.monthly} />
+    </section>
+
+    <section class="block">
+      <h2>策略说明</h2>
+      <p class="desc">{s.description}</p>
+    </section>
+
+    {
+      s.trades.length > 0 && (
+        <section class="block">
+          <h2>交易记录</h2>
+          <p class="note">共 {m.tradeCount} 笔成交，这里展示最近 {s.trades.length} 笔。</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>方向</th>
+                  <th class="num">价格</th>
+                  <th class="num">数量</th>
+                  <th class="num">盈亏</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.trades.map((t) => (
+                  <tr>
+                    <td class="mono">{t.date}</td>
+                    <td class="mono">{t.symbol}</td>
+                    <td>{t.name}</td>
+                    <td>
+                      <span class:list={['side', t.side === '买入' ? 'buy' : 'sell']}>{t.side}</span>
+                    </td>
+                    <td class="num">{t.price.toFixed(2)}</td>
+                    <td class="num">{t.qty.toLocaleString('zh-CN')}</td>
+                    <td class:list={['num', t.pnl !== null && t.pnl > 0 ? 'pos' : '', t.pnl !== null && t.pnl < 0 ? 'neg' : '']}>
+                      {t.pnl === null ? '—' : `${t.pnl > 0 ? '+' : ''}${t.pnl.toLocaleString('zh-CN')}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )
+    }
+
+    <p class="footnote">
+      数据更新于 {quant.updated} · 由个人研究脚本生成
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .back {
+    margin: 0 0 20px;
+    font-size: 0.88rem;
+  }
+
+  .page-head {
+    margin-bottom: 28px;
+  }
+
+  .head-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .head-row h1 {
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 1rem;
+  }
+
+  .status {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 0.84rem;
+    color: var(--text-mute);
+    margin-bottom: 14px;
+  }
+
+  .tags {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .disclaimer {
+    padding: 16px 20px;
+    margin-bottom: 40px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+  }
+
+  /* 只把标题那个 strong 变成块级；段落内部的 <strong> 要留在行内 */
+  .disclaimer > strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+  }
+
+  .disclaimer p {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.7;
+    color: var(--text-soft);
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  .note {
+    margin: 0 0 20px;
+    font-size: 0.86rem;
+    color: var(--text-mute);
+  }
+
+  /* ---------- 指标卡 ---------- */
+
+  .metrics {
+    margin-bottom: 48px;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .metric {
+    padding: 16px 0 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .metric dt {
+    font-size: 0.76rem;
+    color: var(--text-mute);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .hint {
+    font-size: 0.68rem;
+    opacity: 0.7;
+  }
+
+  .metric dd {
+    margin: 0;
+    font-size: 1.28rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .pos {
+    color: var(--accent);
+  }
+
+  .neg {
+    color: #be3c32;
+  }
+
+  :global([data-theme='dark']) .neg {
+    color: #e07a6e;
+  }
+
+  /* ---------- 区块 ---------- */
+
+  .block {
+    margin-bottom: 52px;
+  }
+
+  .desc {
+    color: var(--text-soft);
+    line-height: 1.8;
+    max-width: 680px;
+    margin: 0;
+  }
+
+  /* ---------- 交易表 ---------- */
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  th,
+  td {
+    padding: 10px 13px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-mute);
+    border-bottom-color: var(--border-strong);
+  }
+
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+  }
+
+  .side {
+    font-size: 0.76rem;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .side.buy {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .side.sell {
+    background: rgba(190, 60, 50, 0.12);
+    color: #be3c32;
+  }
+
+  :global([data-theme='dark']) .side.sell {
+    color: #e07a6e;
+  }
+
+  .footnote {
+    margin: 40px 0 0;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-mute);
+  }
+
+  @media (max-width: 560px) {
+    .head-row {
+      flex-direction: column;
+      gap: 10px;
+    }
+  }
+</style>

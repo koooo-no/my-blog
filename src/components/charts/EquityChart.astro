@@ -1,0 +1,204 @@
+---
+/**
+ * 净值曲线图（纯 SVG，构建时渲染，不依赖任何图表库）
+ *
+ * 纵轴是"相对起点的累计收益"，不是净值本身 —— 这样读起来更直观。
+ */
+import { pct, tinyDate, axisRange } from '../../utils/format';
+
+interface Line {
+  name: string;
+  values: number[];
+  /** main = 策略（主色、加粗），bench = 基准（灰色、虚线） */
+  kind?: 'main' | 'bench';
+}
+
+interface Props {
+  dates: string[];
+  lines: Line[];
+  height?: number;
+}
+
+const { dates, lines, height = 280 } = Astro.props;
+
+const W = 820;
+const PAD = { top: 18, right: 14, bottom: 30, left: 56 };
+const plotW = W - PAD.left - PAD.right;
+const plotH = height - PAD.top - PAD.bottom;
+
+// 全部换算成百分比收益
+const series = lines.map((l) => ({
+  ...l,
+  kind: l.kind ?? 'main',
+  pctValues: l.values.map((v) => (v - 1) * 100),
+}));
+
+const allValues = series.flatMap((s) => s.pctValues);
+
+// 纵轴扩到整齐刻度，避免出现 +61% 这种怪数字
+const { lo, hi, ticks: yTicks } = axisRange(allValues, 5);
+
+const n = dates.length;
+const x = (i: number) => PAD.left + (n <= 1 ? 0 : (i / (n - 1)) * plotW);
+const y = (v: number) => PAD.top + (1 - (v - lo) / (hi - lo)) * plotH;
+
+// 5 个横向时间刻度
+const xTickIdx = Array.from({ length: 5 }, (_, i) => Math.round(((n - 1) * i) / 4));
+
+const pointsOf = (vals: number[]) => vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+---
+
+<figure class="chart-figure">
+  <svg
+    viewBox={`0 0 ${W} ${height}`}
+    class="chart"
+    role="img"
+    aria-label={`净值曲线：${series.map((s) => s.name).join(' 与 ')}`}
+  >
+    <!-- 网格与纵轴 -->
+    <g class="grid">
+      {
+        yTicks.map((t) => (
+          <>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} />
+            <text x={PAD.left - 10} y={y(t) + 4} class="axis-label" text-anchor="end">
+              {pct(t / 100, 0, true)}
+            </text>
+          </>
+        ))
+      }
+    </g>
+
+    <!-- 零轴 -->
+    {lo < 0 && hi > 0 && <line class="zero-line" x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} />}
+
+    <!-- 曲线：基准先画，策略压在上面 -->
+    <g class="lines">
+      {
+        [...series]
+          .sort((a, b) => (a.kind === 'bench' ? -1 : 1))
+          .map((s) => (
+            <polyline
+              points={pointsOf(s.pctValues)}
+              class:list={['line', `line-${s.kind}`]}
+              fill="none"
+            />
+          ))
+      }
+    </g>
+
+    <!-- 横轴时间 -->
+    <g class="x-axis">
+      {
+        xTickIdx.map((i, k) => (
+          <text
+            x={x(i)}
+            y={height - 9}
+            class="axis-label"
+            text-anchor={k === 0 ? 'start' : k === 4 ? 'end' : 'middle'}
+          >
+            {tinyDate(dates[i])}
+          </text>
+        ))
+      }
+    </g>
+  </svg>
+
+  <figcaption class="legend">
+    {
+      series.map((s) => (
+        <span class="legend-item">
+          <span class:list={['swatch', `swatch-${s.kind}`]} aria-hidden="true"></span>
+          {s.name}
+        </span>
+      ))
+    }
+  </figcaption>
+</figure>
+
+<style>
+  .chart-figure {
+    margin: 0;
+  }
+
+  .chart {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+
+  .grid line {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .zero-line {
+    stroke: var(--border-strong);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+  }
+
+  .axis-label {
+    fill: var(--text-mute);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .line {
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .line-main {
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+
+  .line-bench {
+    stroke: var(--text-mute);
+    stroke-width: 1.4;
+    stroke-dasharray: 5 4;
+    opacity: 0.85;
+  }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-left: 56px;
+    font-size: 0.82rem;
+    color: var(--text-soft);
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .swatch {
+    width: 16px;
+    height: 0;
+    border-top-width: 2.5px;
+    border-top-style: solid;
+    display: inline-block;
+  }
+
+  .swatch-main {
+    border-color: var(--accent);
+  }
+
+  .swatch-bench {
+    border-color: var(--text-mute);
+    border-top-style: dashed;
+  }
+
+  @media (max-width: 560px) {
+    .legend {
+      padding-left: 0;
+    }
+  }
+</style>
