@@ -5,6 +5,10 @@ import { withBase, stripBase } from '../utils/url';
 
 const path = stripBase(Astro.url.pathname).replace(/\/+$/, '') || '/';
 
+// 站名形如「知序 ZhiXu」，拆开是为了给拉丁字母用等宽字体，强化终端感
+const [brandCn, ...brandRest] = SITE.title.split(' ');
+const brandLatin = brandRest.join(' ');
+
 function isActive(href: string): boolean {
   const clean = href.replace(/\/+$/, '') || '/';
   if (clean === '/') return path === '/';
@@ -16,20 +20,27 @@ function isActive(href: string): boolean {
   <div class="container header-inner">
     <a href={withBase('/')} class="brand" aria-label={SITE.title}>
       <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-text">{SITE.title}</span>
+      <span class="brand-text">
+        <span class="brand-cn">{brandCn}</span>
+        {brandLatin && <span class="brand-latin">{brandLatin}</span>}
+      </span>
     </a>
 
     <nav class="nav" aria-label="主导航">
       {
         NAV.map((item) => (
-          <a href={withBase(item.href)} class:list={['nav-link', { active: isActive(item.href) }]}>
+          <a
+            href={withBase(item.href)}
+            class:list={['nav-link', { active: isActive(item.href) }]}
+            aria-current={isActive(item.href) ? 'page' : undefined}
+          >
             {item.label}
           </a>
         ))
       }
       <a
         href={withBase('/search')}
-        class:list={['search-link', { active: isActive('/search') }]}
+        class:list={['icon-btn', { active: isActive('/search') }]}
         aria-label="搜索"
         title="搜索（按 / 键）"
       >
@@ -62,10 +73,29 @@ function isActive(href: string): boolean {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: color-mix(in srgb, var(--bg) 82%, transparent);
-    backdrop-filter: saturate(180%) blur(14px);
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(150%) blur(12px);
+    -webkit-backdrop-filter: saturate(150%) blur(12px);
     border-bottom: 1px solid var(--border);
+  }
+
+  /* 底边一道极淡的荧光，是整站唯一用「发光」的地方 */
+  .site-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--accent-line) 22%,
+      var(--accent-line) 78%,
+      transparent
+    );
+    opacity: 0.55;
+    pointer-events: none;
   }
 
   .header-inner {
@@ -73,17 +103,16 @@ function isActive(href: string): boolean {
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    height: 62px;
+    height: 60px;
   }
+
+  /* ---------- 品牌 ---------- */
 
   .brand {
     display: inline-flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
     color: var(--text);
-    font-weight: 700;
-    font-size: 1.02rem;
-    letter-spacing: -0.01em;
     white-space: nowrap;
   }
 
@@ -92,46 +121,81 @@ function isActive(href: string): boolean {
   }
 
   .brand-mark {
-    width: 11px;
-    height: 11px;
-    border-radius: 3px;
+    width: 13px;
+    height: 13px;
+    border-radius: 2px;
+    border: 1.5px solid var(--accent);
+    position: relative;
+    flex-shrink: 0;
+    transition: background-color 0.18s ease;
+  }
+
+  .brand-mark::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 1px;
     background: var(--accent);
-    transform: rotate(45deg);
-    transition: transform 0.3s ease;
+    transition: inset 0.18s ease;
   }
 
   .brand:hover .brand-mark {
-    transform: rotate(135deg);
+    background: var(--accent-soft);
   }
+
+  .brand-text {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 1.04rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .brand-latin {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  /* ---------- 导航 ---------- */
 
   .nav {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
   }
 
   .nav-link {
+    position: relative;
     padding: 6px 12px;
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     color: var(--text-soft);
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     font-weight: 500;
     white-space: nowrap;
-    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   }
 
   .nav-link:hover {
     color: var(--text);
     background: var(--bg-soft);
+    border-color: var(--border);
   }
 
   .nav-link.active {
     color: var(--accent);
     background: var(--accent-soft);
+    border-color: var(--accent-line);
   }
 
-  /* 搜索按钮：和主题切换按钮保持一致的尺寸与手感 */
-  .search-link {
+  /* ---------- 图标按钮 ---------- */
+
+  .icon-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -139,26 +203,27 @@ function isActive(href: string): boolean {
     height: 34px;
     margin-left: 6px;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text-soft);
-    transition: all 0.15s ease;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
     flex-shrink: 0;
   }
 
-  .search-link svg {
-    width: 17px;
-    height: 17px;
+  .icon-btn svg {
+    width: 16px;
+    height: 16px;
   }
 
-  .search-link:hover {
+  .icon-btn:hover {
     color: var(--accent);
-    border-color: var(--accent);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
   }
 
-  .search-link.active {
+  .icon-btn.active {
     color: var(--accent);
-    border-color: var(--accent);
+    border-color: var(--accent-line);
     background: var(--accent-soft);
   }
 
@@ -167,8 +232,8 @@ function isActive(href: string): boolean {
       height: auto;
       flex-direction: column;
       align-items: flex-start;
-      gap: 8px;
-      padding-block: 12px;
+      gap: 9px;
+      padding-block: 11px;
     }
 
     .nav {
@@ -185,7 +250,7 @@ function isActive(href: string): boolean {
 
     .nav-link {
       padding: 5px 10px;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
     }
   }
 </style>

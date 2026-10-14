@@ -28,14 +28,15 @@ function formatMetric(v: number, kind: string): string {
   return num(v, 2);
 }
 
+// 红涨绿跌：正数用红、负数用绿，和全站涨跌配色保持一致
 function toneOf(v: number, kind: string): string {
   if (kind !== 'pct' && kind !== 'pctAbs') return '';
-  return v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+  return v > 0 ? 'up' : v < 0 ? 'down' : '';
 }
 ---
 
 <BaseLayout
-  title={`${s.name} · 量化研究`}
+  title={`${s.name} · 量化`}
   description={s.description}
   noindex
 >
@@ -170,7 +171,13 @@ function toneOf(v: number, kind: string): string {
                     </td>
                     <td class="num">{t.price.toFixed(2)}</td>
                     <td class="num">{t.qty.toLocaleString('zh-CN')}</td>
-                    <td class:list={['num', t.pnl !== null && t.pnl > 0 ? 'pos' : '', t.pnl !== null && t.pnl < 0 ? 'neg' : '']}>
+                    <td
+                      class:list={[
+                        'num',
+                        t.pnl !== null && t.pnl > 0 ? 'up' : '',
+                        t.pnl !== null && t.pnl < 0 ? 'down' : '',
+                      ]}
+                    >
                       {t.pnl === null ? '—' : `${t.pnl > 0 ? '+' : ''}${t.pnl.toLocaleString('zh-CN')}`}
                     </td>
                   </tr>
@@ -219,7 +226,7 @@ function toneOf(v: number, kind: string): string {
   .status {
     display: inline-block;
     padding: 3px 12px;
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     background: var(--accent-soft);
     color: var(--accent);
     font-size: 0.76rem;
@@ -321,18 +328,6 @@ function toneOf(v: number, kind: string): string {
     letter-spacing: -0.01em;
   }
 
-  .pos {
-    color: var(--accent);
-  }
-
-  .neg {
-    color: #be3c32;
-  }
-
-  :global([data-theme='dark']) .neg {
-    color: #e07a6e;
-  }
-
   /* ---------- 区块 ---------- */
 
   .block {
@@ -384,24 +379,24 @@ function toneOf(v: number, kind: string): string {
   }
 
   .side {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     padding: 1px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
     font-weight: 600;
   }
 
+  /* 买入/卖出是交易方向，不是涨跌，所以不借用红绿，只靠文字和边框区分 */
   .side.buy {
-    background: var(--accent-soft);
-    color: var(--accent);
+    background: var(--surface);
+    border-color: var(--border-strong);
+    color: var(--text);
   }
 
   .side.sell {
-    background: rgba(190, 60, 50, 0.12);
-    color: #be3c32;
-  }
-
-  :global([data-theme='dark']) .side.sell {
-    color: #e07a6e;
+    background: var(--bg-soft);
+    border-color: var(--border);
+    color: var(--text-mute);
   }
 
   .footnote {

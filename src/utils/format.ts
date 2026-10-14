@@ -20,6 +20,16 @@ export function signedNum(value: number, digits = 2): string {
 }
 
 /**
+ * 带正负号的百分比：0.023 → "+2.3%"，-0.051 → "-5.1%"
+ *
+ * 涨跌一律带符号，这样不依赖颜色也能读出方向 —— 色觉障碍用户一样能用。
+ */
+export function signedPct(value: number, digits = 1): string {
+  const v = value * 100;
+  return `${v > 0 ? '+' : ''}${v.toFixed(digits)}%`;
+}
+
+/**
  * 时间戳 → "2026-10-14 19:36:05"（北京时间）
  *
  * 兼容只有日期的旧值（没有 T 就原样返回），

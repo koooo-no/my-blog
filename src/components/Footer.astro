@@ -29,7 +29,7 @@ function isCurrent(href: string): boolean {
     <div class="footer-inner">
       <div class="footer-left">
         <p class="copyright">© {range} {SITE.title}</p>
-        <p class="built">用 Astro 搭建 · 托管于 GitHub Pages</p>
+        <p class="built">用 Astro 搭建 · 托管于 GitHub Pages · 无后端</p>
       </div>
 
       <nav class="socials" aria-label="联系方式">
@@ -45,33 +45,60 @@ function isCurrent(href: string): boolean {
 
 <style>
   .site-footer {
+    position: relative;
     border-top: 1px solid var(--border);
     background: var(--bg-soft);
-    padding-block: 28px 32px;
+    padding-block: 26px 30px;
     margin-top: 40px;
+  }
+
+  /* 与页头呼应的一条细荧光 */
+  .site-footer::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -1px;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--accent-line) 25%,
+      var(--accent-line) 75%,
+      transparent
+    );
+    opacity: 0.4;
+    pointer-events: none;
   }
 
   .footer-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 20px;
+    gap: 8px 8px;
     padding-bottom: 18px;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--border);
   }
 
   .footer-nav a {
-    font-size: 0.88rem;
+    padding: 4px 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    font-size: 0.86rem;
     color: var(--text-soft);
-    transition: color 0.15s ease;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
   }
 
   .footer-nav a:hover {
     color: var(--accent);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
   }
 
   .footer-nav a.current {
     color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
     font-weight: 500;
   }
 
@@ -85,35 +112,44 @@ function isCurrent(href: string): boolean {
 
   .copyright {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     color: var(--text-soft);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   .built {
-    margin: 2px 0 0;
-    font-size: 0.78rem;
+    margin: 3px 0 0;
+    font-size: 0.76rem;
     color: var(--text-mute);
   }
 
   .socials {
     display: flex;
-    gap: 18px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
   .socials a {
-    font-size: 0.88rem;
+    padding: 4px 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 0.84rem;
     color: var(--text-soft);
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
 
   .socials a:hover {
     color: var(--accent);
+    border-color: var(--accent-line);
   }
 
   @media (max-width: 560px) {
     .footer-inner {
       flex-direction: column;
       align-items: flex-start;
+      gap: 14px;
     }
   }
 </style>

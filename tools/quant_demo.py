@@ -66,17 +66,18 @@ def trading_days(start: date, end: date):
 
 def make_series(n, mu, sigma, seed, shocks=None):
     """
-    生成日收益序列。
+    生成日收益序列：零均值高斯噪声 → AR(1) 平滑 → 叠加目标漂移 mu → 可选冲击。
 
-    先造零均值噪声再做 AR(1) 平滑，然后把样本均值归一掉、换成目标漂移 mu，
-    最后叠加 shocks 制造回撤。这样演示数据的形态是可控的，
-    不会因为某次随机抽样就变成负收益。
+    这里**刻意不做样本均值归一化**。之前做过，结果是把整段跨度的偏差挤到两端，
+    年度收益变成 -22% / -10% / +13% / +16% / +22% / +30% 这种单调加速的形态 ——
+    真实指数不会这样。去掉之后各年收益自然波动，只是需要挑一个形态合理的种子。
+    AR(1) 平滑保持均值不变，所以加 mu 之后整体漂移就是 mu，不需要再校正。
     """
     rng = np.random.default_rng(seed)
     r = rng.normal(0.0, sigma, n)
     for i in range(1, n):
         r[i] = 0.12 * r[i - 1] + 0.88 * r[i]
-    r = r - r.mean() + mu
+    r = r + mu
     if shocks:
         for a, b, drift in shocks:
             r[a:b] += drift
@@ -188,17 +189,17 @@ def build(end_date: date | None = None):
     n_full = len(full_dates)
 
     # 一次性生成整条跨度上的序列（固定，与运行日期无关）
-    bench_r = make_series(n_full, 0.00022, 0.0105, seed=7)
+    bench_r = make_series(n_full, 0.00022, 0.0105, seed=41)
 
     r1 = make_series(
-        n_full, 0.00088, 0.0125, seed=42,
+        n_full, 0.00098, 0.0118, seed=29,
         shocks=[
             (int(n_full * 0.42), int(n_full * 0.50), -0.0022),
             (int(n_full * 0.78), int(n_full * 0.81), -0.0016),
         ],
     )
     r2 = make_series(
-        n_full, 0.00046, 0.0082, seed=99,
+        n_full, 0.00050, 0.0079, seed=8,
         shocks=[(int(n_full * 0.62), int(n_full * 0.66), -0.0012)],
     )
 

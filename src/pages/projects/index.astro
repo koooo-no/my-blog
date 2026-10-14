@@ -100,7 +100,7 @@ const projects = (await getCollection('projects'))
     color: var(--accent);
     background: var(--accent-soft);
     padding: 2px 9px;
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
   }
 
   .star {
@@ -109,11 +109,7 @@ const projects = (await getCollection('projects'))
     color: #fff;
     background: var(--accent);
     padding: 2px 9px;
-    border-radius: 999px;
-  }
-
-  :global([data-theme='dark']) .star {
-    color: #0e0f12;
+    border-radius: var(--radius-sm);
   }
 
   .card h2 {

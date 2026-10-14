@@ -1,36 +1,63 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import EquityChart from '../../components/charts/EquityChart.astro';
+import Sparkline from '../../components/charts/Sparkline.astro';
 import { quant } from '../../utils/quant';
 import { withBase } from '../../utils/url';
-import { pct, num, formatDateTime } from '../../utils/format';
+import { pct, num, signedPct, formatDateTime } from '../../utils/format';
 
 const strategies = quant.strategies;
 
-const pctCell = (v: number) => pct(v, 1, true);
+/**
+ * 组合对比图：只纳入与第一个策略**日期完全一致**的策略。
+ * 日期对不齐就各自看详情页的图，不硬凑到一张图上误导人。
+ */
+const baseDates = strategies[0]?.dates ?? [];
+const isAligned = (s: (typeof strategies)[number]) =>
+  s.dates.length === baseDates.length &&
+  s.dates[0] === baseDates[0] &&
+  s.dates[baseDates.length - 1] === baseDates[baseDates.length - 1];
+
+const aligned = strategies.filter(isAligned);
+const skipped = strategies.filter((s) => !isAligned(s));
+
+const combinedLines = [
+  ...aligned.map((s) => ({ name: s.name, values: s.equity, kind: 'main' as const })),
+  ...(aligned.length
+    ? [{ name: `${quant.benchmarkName}（基准）`, values: aligned[0].benchmark, kind: 'bench' as const }]
+    : []),
+];
 ---
 
-<BaseLayout
-  title="量化"
-  description="个人量化策略的回测记录、指标与研究报告。"
-  noindex
->
+<BaseLayout title="量化" description="策略回测看板、基准对比与研究报告。" noindex>
   <div class="container">
     <header class="page-head">
-      <h1>量化</h1>
+      <div class="head-row">
+        <div>
+          <p class="eyebrow">Quantitative Desk</p>
+          <h1>量化</h1>
+        </div>
+        <dl class="readout" aria-label="数据状态">
+          <div>
+            <dt>数据更新时间</dt>
+            <dd>{formatDateTime(quant.updated)}</dd>
+          </div>
+          <div>
+            <dt>基准</dt>
+            <dd>{quant.benchmarkName}</dd>
+          </div>
+          <div>
+            <dt>策略数</dt>
+            <dd>{strategies.length}</dd>
+          </div>
+        </dl>
+      </div>
       <p class="lead">
-        策略回测看板，以及按统一框架撰写的研究报告。所有结果都是<strong>回测模拟</strong>，不是实盘。
-      </p>
-      <p class="meta">
-        <span>数据更新于 {formatDateTime(quant.updated)}</span>
-        <span aria-hidden="true">·</span>
-        <span>基准：{quant.benchmarkName}</span>
-        <span aria-hidden="true">·</span>
-        <span>{strategies.length} 个策略</span>
+        策略回测看板与研究报告。所有结果都是<strong>回测模拟</strong>，不是实盘，也不代表未来收益。
       </p>
 
       <nav class="sub-nav" aria-label="量化栏目导航">
-        <span class="sub-current">策略看板</span>
+        <span class="sub-current" aria-current="page">策略看板</span>
         <a href={withBase('/quant/research')}>研究报告 →</a>
       </nav>
     </header>
@@ -44,41 +71,135 @@ const pctCell = (v: number) => pct(v, 1, true);
       </p>
     </aside>
 
-    <section class="compare">
-      <h2>策略对比</h2>
-      <div class="table-wrap">
+    <!-- ============ 1. 策略表现卡片 ============ -->
+    <section class="block">
+      <div class="section-head">
+        <h2>策略表现</h2>
+        <span class="count">{strategies.length} 个策略</span>
+      </div>
+
+      {
+        strategies.length === 0 ? (
+          <p class="empty-state">还没有策略数据。</p>
+        ) : (
+          <div class="card-grid">
+            {strategies.map((s) => (
+              <article class="strat-card">
+                <header class="card-head">
+                  <h3>
+                    <a href={withBase(`/quant/${s.id}`)}>{s.name}</a>
+                  </h3>
+                  <span class="status">{s.status}</span>
+                </header>
+
+                <p class="card-sub">{s.subtitle}</p>
+
+                <div class="spark-wrap">
+                  <Sparkline values={s.equity} />
+                </div>
+
+                <dl class="kpi">
+                  <div class="kpi-main">
+                    <dt>年化收益</dt>
+                    <dd class={s.metrics.annualReturn >= 0 ? 'up' : 'down'}>
+                      <span class="arrow" aria-hidden="true">
+                        {s.metrics.annualReturn >= 0 ? '▲' : '▼'}
+                      </span>
+                      {signedPct(s.metrics.annualReturn)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>超额收益</dt>
+                    <dd class={s.metrics.excessAnnualReturn >= 0 ? 'up' : 'down'}>
+                      {signedPct(s.metrics.excessAnnualReturn)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>最大回撤</dt>
+                    <dd class="down">{pct(s.metrics.maxDrawdown, 1)}</dd>
+                  </div>
+                  <div>
+                    <dt>夏普</dt>
+                    <dd>{num(s.metrics.sharpe)}</dd>
+                  </div>
+                  <div>
+                    <dt>卡玛</dt>
+                    <dd>{num(s.metrics.calmar)}</dd>
+                  </div>
+                  <div>
+                    <dt>胜率</dt>
+                    <dd>{pct(s.metrics.winRate, 1)}</dd>
+                  </div>
+                </dl>
+
+                <footer class="card-foot">
+                  <span class="range">
+                    {s.dates[0]} ~ {s.dates[s.dates.length - 1]}
+                  </span>
+                  <a href={withBase(`/quant/${s.id}`)}>完整报告 →</a>
+                </footer>
+              </article>
+            ))}
+          </div>
+        )
+      }
+    </section>
+
+    <!-- ============ 2. 基准对比 ============ -->
+    <section class="block">
+      <div class="section-head">
+        <h2>基准对比</h2>
+        <span class="count">基准：{quant.benchmarkName}</span>
+      </div>
+
+      <div class="table-scroll">
         <table>
+          <caption class="visually-hidden">
+            各策略与基准的收益、回撤与风险指标对比
+          </caption>
           <thead>
             <tr>
-              <th>策略</th>
-              <th class="num">年化收益</th>
-              <th class="num">超额收益</th>
-              <th class="num">最大回撤</th>
-              <th class="num">夏普</th>
-              <th>状态</th>
+              <th scope="col">策略</th>
+              <th scope="col" class="num">年化收益</th>
+              <th scope="col" class="num">超额收益</th>
+              <th scope="col" class="num">最大回撤</th>
+              <th scope="col" class="num">夏普</th>
+              <th scope="col" class="num">卡玛</th>
+              <th scope="col" class="num">年化波动</th>
+              <th scope="col">状态</th>
             </tr>
           </thead>
           <tbody>
             {
               strategies.map((s) => (
                 <tr>
-                  <td>
-                    <a href={withBase(`/quant/${s.id}`)}>
-                      {s.name}
-                    </a>
+                  <th scope="row" class="row-head">
+                    <a href={withBase(`/quant/${s.id}`)}>{s.name}</a>
                     <span class="sub">{s.subtitle}</span>
+                  </th>
+                  <td class={`num strong ${s.metrics.annualReturn >= 0 ? 'up' : 'down'}`}>
+                    {signedPct(s.metrics.annualReturn)}
                   </td>
-                  <td class="num strong">{pctCell(s.metrics.annualReturn)}</td>
-                  <td class="num">{pctCell(s.metrics.excessAnnualReturn)}</td>
-                  <td class="num neg">{pct(s.metrics.maxDrawdown, 1)}</td>
+                  <td class={`num ${s.metrics.excessAnnualReturn >= 0 ? 'up' : 'down'}`}>
+                    {signedPct(s.metrics.excessAnnualReturn)}
+                  </td>
+                  <td class="num down">{pct(s.metrics.maxDrawdown, 1)}</td>
                   <td class="num">{num(s.metrics.sharpe)}</td>
-                  <td><span class="status">{s.status}</span></td>
+                  <td class="num">{num(s.metrics.calmar)}</td>
+                  <td class="num">{pct(s.metrics.volatility, 1)}</td>
+                  <td>
+                    <span class="status">{s.status}</span>
+                  </td>
                 </tr>
               ))
             }
             <tr class="bench-row">
-              <td>基准（{quant.benchmarkName}）</td>
-              <td class="num">{pctCell(strategies[0]?.metrics.benchmarkAnnualReturn ?? 0)}</td>
+              <th scope="row" class="row-head">基准（{quant.benchmarkName}）</th>
+              <td class={`num ${(strategies[0]?.metrics.benchmarkAnnualReturn ?? 0) >= 0 ? 'up' : 'down'}`}>
+                {signedPct(strategies[0]?.metrics.benchmarkAnnualReturn ?? 0)}
+              </td>
+              <td class="num">—</td>
+              <td class="num">—</td>
               <td class="num">—</td>
               <td class="num">—</td>
               <td class="num">—</td>
@@ -87,278 +208,407 @@ const pctCell = (v: number) => pct(v, 1, true);
           </tbody>
         </table>
       </div>
+
+      <p class="table-note">
+        涨跌配色遵循中国习惯：<span class="up">红涨</span> / <span class="down">绿跌</span>；
+        所有收益类数值都带正负号，不单靠颜色区分。表格在窄屏下可横向滚动。
+      </p>
     </section>
 
-    {
-      strategies.map((s) => (
-        <section class="strategy">
-          <div class="strategy-head">
-            <div>
-              <h2>
-                <a href={withBase(`/quant/${s.id}`)}>{s.name}</a>
-              </h2>
-              <p class="sub">{s.subtitle}</p>
-            </div>
-            <span class="status">{s.status}</span>
-          </div>
+    <!-- ============ 3. 净值曲线 ============ -->
+    <section class="block">
+      <div class="section-head">
+        <h2>净值曲线</h2>
+        <span class="count">{aligned.length} 条策略曲线 + 基准</span>
+      </div>
 
-          <p class="desc">{s.description}</p>
+      {
+        aligned.length > 0 ? (
+          <>
+            <EquityChart dates={baseDates} lines={combinedLines} height={340} />
+            <p class="chart-note">
+              纵轴为<strong>相对起点的累计收益</strong>（起点归零），不是净值绝对值。
+              基准为 {quant.benchmarkName}，以虚线表示。
+              {skipped.length > 0
+                ? ` 有 ${skipped.length} 个策略因回测区间与其他策略不一致，未画入本图，请看各自详情页。`
+                : ''}
+            </p>
+          </>
+        ) : (
+          <p class="empty-state">暂无可对比的净值曲线。</p>
+        )
+      }
+    </section>
 
-          <dl class="quick">
-            <div>
-              <dt>年化收益</dt>
-              <dd class="strong">{pctCell(s.metrics.annualReturn)}</dd>
-            </div>
-            <div>
-              <dt>最大回撤</dt>
-              <dd class="neg">{pct(s.metrics.maxDrawdown, 1)}</dd>
-            </div>
-            <div>
-              <dt>夏普比率</dt>
-              <dd>{num(s.metrics.sharpe)}</dd>
-            </div>
-            <div>
-              <dt>回测区间</dt>
-              <dd class="small">{s.dates[0]} ~ {s.dates[s.dates.length - 1]}</dd>
-            </div>
-          </dl>
-
-          <EquityChart
-            dates={s.dates}
-            height={230}
-            lines={[
-              { name: `${s.name}（策略）`, values: s.equity, kind: 'main' },
-              { name: quant.benchmarkName, values: s.benchmark, kind: 'bench' },
-            ]}
-          />
-
-          <p class="more">
-            <a href={withBase(`/quant/${s.id}`)}>
-              查看完整报告 →
-            </a>
-          </p>
-        </section>
-      ))
-    }
+    <p class="footnote">
+      指标均由回测脚本计算，未做手工调整。成本与风险假设见各策略详情页与研究报告。
+    </p>
   </div>
 </BaseLayout>
 
 <style>
+  /* ---------- 页头 ---------- */
+
   .page-head {
-    margin-bottom: 26px;
+    margin-bottom: 24px;
   }
 
-  /* 栏目内部导航：策略看板 / 研究报告 */
+  .head-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .eyebrow {
+    margin: 0 0 4px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .head-row h1 {
+    margin: 0;
+  }
+
+  /* 终端读数条 */
+  .readout {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .readout > div {
+    padding: 8px 16px;
+    border-right: 1px solid var(--border);
+  }
+
+  .readout > div:last-child {
+    border-right: 0;
+  }
+
+  .readout dt {
+    font-size: 0.68rem;
+    color: var(--text-mute);
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+
+  .readout dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .lead {
+    color: var(--text-soft);
+    margin: 0;
+    max-width: 660px;
+    line-height: 1.8;
+  }
+
   .sub-nav {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 6px;
     margin-top: 18px;
     padding-top: 16px;
     border-top: 1px solid var(--border);
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+  }
+
+  .sub-nav a,
+  .sub-current {
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
   }
 
   .sub-current {
     font-weight: 600;
     color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
   }
 
   .sub-nav a {
     color: var(--text-soft);
+    border-color: var(--border);
+    background: var(--surface);
   }
 
   .sub-nav a:hover {
     color: var(--accent);
-  }
-
-  .lead {
-    color: var(--text-soft);
-    margin-bottom: 10px;
-    max-width: 620px;
-  }
-
-  .page-head .meta {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin: 0;
-    font-size: 0.84rem;
-    color: var(--text-mute);
+    border-color: var(--accent-line);
   }
 
   /* ---------- 免责声明 ---------- */
 
   .disclaimer {
-    padding: 16px 20px;
-    margin-bottom: 40px;
+    padding: 14px 18px;
+    margin-bottom: 44px;
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
+    border-left: 2px solid var(--accent);
     border-radius: var(--radius);
     background: var(--bg-soft);
   }
 
-  /* 只把标题那个 strong 变成块级；段落内部的 <strong> 要留在行内 */
   .disclaimer > strong {
     display: block;
-    margin-bottom: 6px;
-    font-size: 0.88rem;
+    margin-bottom: 5px;
+    font-size: 0.84rem;
   }
 
   .disclaimer p {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     line-height: 1.7;
     color: var(--text-soft);
   }
 
-  /* ---------- 对比表 ---------- */
+  /* ---------- 区块 ---------- */
 
-  .compare h2,
-  .strategy h2 {
-    font-size: 1.25rem;
+  .block {
+    margin-bottom: 52px;
   }
 
-  .table-wrap {
-    overflow-x: auto;
-    margin-bottom: 10px;
+  .count {
+    font-size: 0.8rem;
+    color: var(--text-mute);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
+
+  /* ---------- 策略卡片 ---------- */
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: var(--gap);
+  }
+
+  .strat-card {
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    transition: border-color 0.16s ease;
+  }
+
+  .strat-card:hover {
+    border-color: var(--accent-line);
+  }
+
+  .card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .card-head h3 {
+    margin: 0;
+    font-size: 1.08rem;
+  }
+
+  .card-head h3 a {
+    color: var(--text);
+  }
+
+  .card-head h3 a:hover {
+    color: var(--accent);
+  }
+
+  .card-sub {
+    margin: 0 0 12px;
+    font-size: 0.84rem;
+    color: var(--text-mute);
+  }
+
+  .spark-wrap {
+    margin: 0 -2px 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kpi {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px 10px;
+    margin: 0;
+  }
+
+  .kpi > div {
+    min-width: 0;
+  }
+
+  .kpi dt {
+    font-size: 0.7rem;
+    color: var(--text-mute);
+    margin-bottom: 2px;
+    white-space: nowrap;
+  }
+
+  .kpi dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.94rem;
+    font-variant-numeric: tabular-nums;
+    /* 注意：这里不能写 color —— 会盖掉 .up / .down，
+       导致涨跌颜色失效（颜色继承自父元素即可） */
+    white-space: nowrap;
+  }
+
+  .kpi-main dd {
+    font-size: 1.24rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .arrow {
+    font-size: 0.72em;
+    vertical-align: 0.06em;
+    margin-right: 1px;
+  }
+
+  .card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+
+  .range {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-mute);
+  }
+
+  /* ---------- 表格 ---------- */
 
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
   }
 
   th,
   td {
-    padding: 12px 14px;
+    padding: 11px 14px;
     border-bottom: 1px solid var(--border);
     text-align: left;
     white-space: nowrap;
   }
 
-  th {
-    font-size: 0.78rem;
+  thead th {
+    font-size: 0.74rem;
     font-weight: 600;
     color: var(--text-mute);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
     border-bottom-color: var(--border-strong);
+    background: var(--bg-soft);
   }
 
   .num {
     text-align: right;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
   .strong {
-    font-weight: 600;
+    font-weight: 700;
+  }
+
+  .row-head {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .row-head a {
+    color: var(--text);
+  }
+
+  .row-head a:hover {
     color: var(--accent);
-  }
-
-  .neg {
-    color: #be3c32;
-  }
-
-  :global([data-theme='dark']) .neg {
-    color: #e07a6e;
   }
 
   .sub {
     display: block;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     color: var(--text-mute);
     font-weight: 400;
     margin-top: 2px;
   }
 
+  tbody tr:hover {
+    background: var(--bg-soft);
+  }
+
+  .bench-row th,
   .bench-row td {
     color: var(--text-mute);
     border-bottom: 0;
   }
 
-  .status {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 999px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-size: 0.74rem;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  /* ---------- 策略卡片 ---------- */
-
-  .strategy {
-    margin-top: 56px;
-    padding-top: 32px;
-    border-top: 1px solid var(--border);
-  }
-
-  .strategy-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .strategy-head h2 {
-    margin: 0 0 4px;
-  }
-
-  .strategy-head h2 a {
-    color: var(--text);
-  }
-
-  .strategy-head h2 a:hover {
-    color: var(--accent);
-  }
-
-  .desc {
-    color: var(--text-soft);
-    font-size: 0.94rem;
+  .table-note,
+  .chart-note {
+    margin: 14px 0 0;
+    font-size: 0.78rem;
     line-height: 1.75;
-    max-width: 680px;
-    margin: 14px 0 22px;
-  }
-
-  .quick {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 2px 22px;
-    margin: 0 0 26px;
-    padding: 0;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .quick > div {
-    padding: 12px 0;
-  }
-
-  .quick dt {
-    font-size: 0.76rem;
     color: var(--text-mute);
-    margin-bottom: 3px;
   }
 
-  .quick dd {
+  .table-note .up,
+  .table-note .down {
+    font-family: var(--font-mono);
+  }
+
+  .footnote {
     margin: 0;
-    font-size: 1.06rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text-mute);
   }
 
-  .quick dd.small {
-    font-size: 0.84rem;
-    font-weight: 400;
-    color: var(--text-soft);
+  @media (max-width: 720px) {
+    .readout {
+      width: 100%;
+    }
+
+    .readout > div {
+      flex: 1 1 auto;
+      padding: 7px 12px;
+    }
+
+    .card-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
-  .more {
-    margin: 18px 0 0;
-    font-size: 0.9rem;
+  @media (max-width: 420px) {
+    .kpi {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 </style>

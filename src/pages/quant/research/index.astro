@@ -54,16 +54,11 @@ const groups = [
           ))
         }
       </ol>
-      <p class="howto">
-        写新研究：复制 <code>templates/research.md</code> 到
-        <code>src/content/research/</code> 下改名即可。
-        构建时会自动检查七个部分是否齐全，缺了会报错。
-      </p>
     </section>
 
     {
       groups.length === 0 ? (
-        <p class="empty-state">还没有研究报告。从 templates/research.md 复制一份开始写吧。</p>
+        <p class="empty-state">还没有发布的研究报告。</p>
       ) : (
         groups.map((g) => (
           <section class="group">
@@ -149,6 +144,7 @@ const groups = [
   }
 
   .step-num {
+    font-family: var(--font-mono);
     font-size: 0.72rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -169,24 +165,6 @@ const groups = [
     font-size: 0.8rem;
     color: var(--text-mute);
     line-height: 1.6;
-  }
-
-  .howto {
-    margin: 22px 0 0;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    font-size: 0.82rem;
-    color: var(--text-mute);
-    line-height: 1.75;
-  }
-
-  .howto code {
-    font-family: var(--font-mono);
-    font-size: 0.86em;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: var(--surface);
-    border: 1px solid var(--border);
   }
 
   .group {
@@ -247,15 +225,6 @@ const groups = [
     flex-wrap: wrap;
     font-size: 0.8rem;
     color: var(--text-mute);
-  }
-
-  .status {
-    padding: 1px 9px;
-    border-radius: 999px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-size: 0.72rem;
-    font-weight: 600;
   }
 
   .back-quant {

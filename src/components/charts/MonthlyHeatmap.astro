@@ -1,9 +1,13 @@
 ---
 /**
  * 月度收益热力图（纯 SVG）
- * 行 = 年份，列 = 1–12 月，颜色深浅表示收益高低。
+ *
+ * 行 = 年份，列 = 1–12 月，颜色深浅表示收益幅度。
+ *
+ * 配色遵循中国习惯：**红涨绿跌**。
+ * 并且不只靠颜色 —— 每个格子里都带正负号，色觉障碍用户也能读。
  */
-import { pct } from '../../utils/format';
+import { signedPct } from '../../utils/format';
 
 interface MonthCell {
   y: number;
@@ -31,19 +35,16 @@ const maxAbs = Math.max(...monthly.map((c) => Math.abs(c.r)), 0.001);
 const W = LEFT + 12 * (CELL + GAP);
 const H = TOP + years.length * (CELL + GAP) + BOTTOM;
 
-/** 收益 → 背景色：正绿负红，深浅按幅度 */
-function heat(r: number | undefined): string {
-  if (r === undefined) return 'transparent';
+/** 幅度 → 不透明度 */
+function alphaOf(r: number): number {
   const t = Math.min(1, Math.abs(r) / maxAbs);
-  const alpha = 0.1 + t * 0.72;
-  return r >= 0 ? `rgba(47, 93, 80, ${alpha.toFixed(3)})` : `rgba(190, 60, 50, ${alpha.toFixed(3)})`;
+  return Number((0.12 + t * 0.7).toFixed(3));
 }
 
-/** 底色深的时候文字要反白，否则看不清 */
+/** 底色深的时候文字反白，否则用正文色 */
 function textColor(r: number | undefined): string {
   if (r === undefined) return 'var(--text-mute)';
-  const t = Math.min(1, Math.abs(r) / maxAbs);
-  return 0.1 + t * 0.72 > 0.52 ? '#ffffff' : 'var(--text-soft)';
+  return alphaOf(r) > 0.5 ? '#ffffff' : 'var(--text-soft)';
 }
 
 const cellX = (m: number) => LEFT + (m - 1) * (CELL + GAP);
@@ -55,7 +56,7 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
     viewBox={`0 0 ${W} ${H}`}
     class="chart heatmap"
     role="img"
-    aria-label="月度收益热力图"
+    aria-label="月度收益热力图，红涨绿跌，每格标注百分比"
   >
     <!-- 月份表头 -->
     <g class="head">
@@ -84,8 +85,9 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
                   y={cellY(yi)}
                   width={CELL}
                   height={CELL}
-                  rx="6"
-                  fill={heat(r)}
+                  rx="3"
+                  fill={r === undefined ? 'transparent' : r >= 0 ? 'var(--up)' : 'var(--down)'}
+                  fill-opacity={r === undefined ? 0 : alphaOf(r)}
                   class="cell-bg"
                 />
                 <text
@@ -95,7 +97,7 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
                   text-anchor="middle"
                   fill={textColor(r)}
                 >
-                  {r === undefined ? '—' : pct(r, 1)}
+                  {r === undefined ? '—' : signedPct(r, 1)}
                 </text>
               </g>
             );
@@ -107,14 +109,15 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
 
   <figcaption class="legend">
     <span class="legend-item">
-      <span class="swatch" style="background: rgba(190, 60, 50, 0.78)"></span>亏损
+      <span class="swatch swatch-down" aria-hidden="true"></span>下跌（绿）
     </span>
     <span class="legend-item">
-      <span class="swatch" style="background: rgba(47, 93, 80, 0.16)"></span>小赚
+      <span class="swatch swatch-up-faint" aria-hidden="true"></span>小幅上涨
     </span>
     <span class="legend-item">
-      <span class="swatch" style="background: rgba(47, 93, 80, 0.82)"></span>大赚
+      <span class="swatch swatch-up" aria-hidden="true"></span>大幅上涨（红）
     </span>
+    <span class="legend-note">每格带正负号，不单靠颜色区分</span>
   </figcaption>
 </figure>
 
@@ -132,6 +135,7 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
   .axis-label {
     fill: var(--text-mute);
     font-size: 11px;
+    font-family: var(--font-mono);
   }
 
   .year-label {
@@ -146,15 +150,17 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
 
   .cell-text {
     font-size: 11px;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
   .legend {
     display: flex;
-    gap: 18px;
+    gap: 8px 18px;
     flex-wrap: wrap;
+    align-items: center;
     margin-top: 12px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--text-mute);
   }
 
@@ -164,11 +170,30 @@ const cellY = (yi: number) => TOP + yi * (CELL + GAP);
     gap: 6px;
   }
 
+  .legend-note {
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+  }
+
   .swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 4px;
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
     border: 1px solid var(--border);
     display: inline-block;
+  }
+
+  .swatch-up {
+    background: var(--up);
+  }
+
+  .swatch-up-faint {
+    background: var(--up);
+    opacity: 0.28;
+  }
+
+  .swatch-down {
+    background: var(--down);
+    opacity: 0.72;
   }
 </style>

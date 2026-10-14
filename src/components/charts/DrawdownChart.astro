@@ -1,7 +1,11 @@
 ---
 /**
  * 回撤图（纯 SVG）
+ *
  * 显示从历史最高点回落的幅度，恒为 0 或负值。
+ *
+ * 配色：回撤是**下跌**，按中国习惯用绿色（红涨绿跌）。
+ * 为避免只靠颜色传达含义，标题里写明"负向"，数值也带负号。
  */
 import { pct, tinyDate, niceTicks } from '../../utils/format';
 
@@ -14,7 +18,7 @@ interface Props {
 const { dates, values, height = 200 } = Astro.props;
 
 const W = 820;
-const PAD = { top: 16, right: 14, bottom: 30, left: 56 };
+const PAD = { top: 16, right: 14, bottom: 30, left: 58 };
 const plotW = W - PAD.left - PAD.right;
 const plotH = height - PAD.top - PAD.bottom;
 
@@ -53,7 +57,7 @@ const maxDdIdx = drawdown.indexOf(maxDd);
     viewBox={`0 0 ${W} ${height}`}
     class="chart"
     role="img"
-    aria-label={`回撤曲线，最大回撤 ${pct(maxDd / 100, 1)}`}
+    aria-label={`回撤曲线（负向），最大回撤 ${pct(maxDd / 100, 1)}，发生于 ${dates[maxDdIdx]}`}
   >
     <g class="grid">
       {
@@ -90,9 +94,15 @@ const maxDdIdx = drawdown.indexOf(maxDd);
     </g>
   </svg>
 
-  <figcaption class="dd-caption">
-    最大回撤 <strong>{pct(maxDd / 100, 1)}</strong>
-    <span class="dim">（{dates[maxDdIdx]}）</span>
+  <figcaption class="caption">
+    <span class="dd-stat">
+      最大回撤 <strong class="down">{pct(maxDd / 100, 1)}</strong>
+      <span class="dim">（负向，{dates[maxDdIdx]}）</span>
+    </span>
+    <span class="range">
+      区间 <time datetime={dates[0]}>{dates[0]}</time> ~ <time datetime={dates[n - 1]}>{dates[n - 1]}</time>
+      · 按收盘净值逐日计算
+    </span>
   </figcaption>
 </figure>
 
@@ -109,7 +119,7 @@ const maxDdIdx = drawdown.indexOf(maxDd);
   }
 
   .grid line {
-    stroke: var(--border);
+    stroke: var(--grid);
     stroke-width: 1;
   }
 
@@ -121,39 +131,57 @@ const maxDdIdx = drawdown.indexOf(maxDd);
   .axis-label {
     fill: var(--text-mute);
     font-size: 11px;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
+  /* 回撤 = 下跌 → 绿色 */
   .dd-area {
-    fill: rgba(190, 60, 50, 0.14);
-    stroke: rgba(190, 60, 50, 0.75);
+    fill: var(--down);
+    fill-opacity: 0.15;
+    stroke: var(--down);
+    stroke-opacity: 0.7;
     stroke-width: 1.2;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
   }
 
   .dd-dot {
-    fill: rgba(190, 60, 50, 0.95);
+    fill: var(--down);
   }
 
-  .dd-caption {
-    margin-top: 10px;
-    padding-left: 56px;
-    font-size: 0.84rem;
-    color: var(--text-soft);
-  }
-
-  .dd-caption strong {
-    color: var(--text);
-  }
-
-  .dim {
+  .caption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 20px;
+    margin-top: 11px;
+    padding-top: 11px;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
     color: var(--text-mute);
   }
 
+  .dd-stat strong {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.86rem;
+  }
+
+  .dim {
+    opacity: 0.85;
+  }
+
+  .range {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
   @media (max-width: 560px) {
-    .dd-caption {
-      padding-left: 0;
+    .caption {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 </style>

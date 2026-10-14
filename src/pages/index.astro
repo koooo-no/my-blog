@@ -3,43 +3,134 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import EntryItem from '../components/EntryItem.astro';
 import { getCollection } from 'astro:content';
 import { SITE, HOME_LIMITS } from '../consts';
-import { sortByDate } from '../utils/date';
+import { sortByDate, formatDate } from '../utils/date';
 import { withBase } from '../utils/url';
+import { quant } from '../utils/quant';
+import { formatDateTime } from '../utils/format';
 
 const isPublished = (entry: { data: { draft: boolean } }) =>
   import.meta.env.PROD ? !entry.data.draft : true;
 
-const posts = sortByDate((await getCollection('posts')).filter(isPublished));
-const notes = sortByDate((await getCollection('notes')).filter(isPublished));
-const projects = (await getCollection('projects'))
-  .filter(isPublished)
-  .sort((a, b) => Number(b.data.featured) - Number(a.data.featured) || b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+const [posts, notes, research, projects] = await Promise.all([
+  getCollection('posts'),
+  getCollection('notes'),
+  getCollection('research'),
+  getCollection('projects'),
+]);
 
-const featured = [...posts].sort(
-  (a, b) => Number(b.data.featured) - Number(a.data.featured) || b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+const pubPosts = sortByDate(posts.filter(isPublished));
+const pubNotes = sortByDate(notes.filter(isPublished));
+const pubResearch = sortByDate(research.filter(isPublished));
+const pubProjects = projects
+  .filter(isPublished)
+  .sort(
+    (a, b) =>
+      Number(b.data.featured) - Number(a.data.featured) ||
+      b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+  );
+
+const featured = [...pubPosts].sort(
+  (a, b) =>
+    Number(b.data.featured) - Number(a.data.featured) ||
+    b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
 const recentPosts = featured.slice(0, HOME_LIMITS.posts);
-const recentNotes = notes.slice(0, HOME_LIMITS.notes);
-const recentProjects = projects.slice(0, HOME_LIMITS.projects);
+const recentNotes = pubNotes.slice(0, HOME_LIMITS.notes);
+const recentProjects = pubProjects.slice(0, HOME_LIMITS.projects);
+const recentResearch = pubResearch.slice(0, 3);
+
+const strategyCount = quant.strategies.length;
 ---
 
 <BaseLayout>
-  <section class="container hero">
-    <p class="hero-greeting">{SITE.motto}</p>
-    <h1 class="hero-title">{SITE.tagline}</h1>
-    <p class="hero-sub">{SITE.intro}</p>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href={withBase('/blog')}>开始阅读</a>
-      <a class="btn" href={withBase('/quant')}>量化研究</a>
-      <a class="btn" href={withBase('/about')}>关于知序</a>
+  <!-- ============ 首屏 ============ -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <div class="hero-main">
+        <p class="hero-eyebrow">
+          <span class="pulse" aria-hidden="true"></span>
+          AI 量化研究终端
+        </p>
+
+        <h1 class="hero-title">
+          知序 <span class="hero-latin">ZhiXu</span>
+        </h1>
+
+        <p class="hero-tagline">{SITE.tagline}</p>
+        <p class="hero-intro">{SITE.intro}</p>
+
+        <div class="hero-actions">
+          <a class="btn btn-primary" href={withBase('/quant')}>量化看板</a>
+          <a class="btn" href={withBase('/blog')}>开始阅读</a>
+          <a class="btn" href={withBase('/about')}>关于知序</a>
+        </div>
+
+        <p class="hero-motto">{SITE.motto}</p>
+      </div>
+
+      <!--
+        状态面板：只使用构建时真实存在的数据。
+        这里刻意标注「构建时快照」，并且不显示任何会被误认为实时行情的东西。
+      -->
+      <aside class="readout" aria-labelledby="readout-title">
+        <div class="readout-head">
+          <h2 id="readout-title">站点状态</h2>
+          <span class="readout-badge">构建时快照</span>
+        </div>
+        <dl class="readout-body">
+          <div>
+            <dt>内容索引</dt>
+            <dd>
+              <span>{pubPosts.length}</span> 博客 ·
+              <span>{pubNotes.length}</span> 笔记 ·
+              <span>{pubResearch.length}</span> 研究 ·
+              <span>{pubProjects.length}</span> 作品
+            </dd>
+          </div>
+          <div>
+            <dt>量化数据</dt>
+            <dd><span>{strategyCount}</span> 个策略 · {formatDateTime(quant.updated)}</dd>
+          </div>
+          <div>
+            <dt>站点形态</dt>
+            <dd>静态构建 · 无后端 · GitHub Pages</dd>
+          </div>
+        </dl>
+        <p class="readout-note">
+          以上为构建时的静态快照，<strong>不是实时行情</strong>，页面不会自动刷新。
+        </p>
+      </aside>
     </div>
   </section>
 
   <div class="container home-sections">
+    {
+      recentResearch.length > 0 && (
+        <section>
+          <div class="section-head">
+            <h2>研究报告</h2>
+            <a href={withBase('/quant/research')}>全部 {pubResearch.length} 篇 →</a>
+          </div>
+          <div class="list">
+            {recentResearch.map((r) => (
+              <EntryItem
+                href={withBase(`/quant/research/${r.id}`)}
+                title={r.data.title}
+                description={r.data.description}
+                date={r.data.pubDate}
+                tags={r.data.tags}
+                badge={r.data.status}
+              />
+            ))}
+          </div>
+        </section>
+      )
+    }
+
     <section>
       <div class="section-head">
         <h2>最新文章</h2>
-        <a href={withBase('/blog')}>全部 {posts.length} 篇 →</a>
+        <a href={withBase('/blog')}>全部 {pubPosts.length} 篇 →</a>
       </div>
       {
         recentPosts.length > 0 ? (
@@ -56,7 +147,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
             ))}
           </div>
         ) : (
-          <p class="empty-state">还没有文章，去 src/content/posts/ 里新建一个吧。</p>
+          <p class="empty-state">还没有文章。</p>
         )
       }
     </section>
@@ -64,7 +155,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     <section>
       <div class="section-head">
         <h2>知识库</h2>
-        <a href={withBase('/notes')}>全部 {notes.length} 篇 →</a>
+        <a href={withBase('/notes')}>全部 {pubNotes.length} 篇 →</a>
       </div>
       {
         recentNotes.length > 0 ? (
@@ -80,7 +171,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
             ))}
           </div>
         ) : (
-          <p class="empty-state">还没有笔记，去 src/content/notes/ 里新建一个吧。</p>
+          <p class="empty-state">还没有笔记。</p>
         )
       }
     </section>
@@ -88,7 +179,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     <section>
       <div class="section-head">
         <h2>作品</h2>
-        <a href={withBase('/projects')}>全部 {projects.length} 个 →</a>
+        <a href={withBase('/projects')}>全部 {pubProjects.length} 个 →</a>
       </div>
       {
         recentProjects.length > 0 ? (
@@ -96,7 +187,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
             {recentProjects.map((p) => (
               <a class="project-card" href={withBase(`/projects/${p.id}`)}>
                 <div class="project-top">
-                  <span class="project-status">{p.data.status}</span>
+                  <span class="status">{p.data.status}</span>
                 </div>
                 <h3>{p.data.title}</h3>
                 <p>{p.data.description}</p>
@@ -109,7 +200,7 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
             ))}
           </div>
         ) : (
-          <p class="empty-state">还没有作品，去 src/content/projects/ 里新建一个吧。</p>
+          <p class="empty-state">还没有作品。</p>
         )
       }
     </section>
@@ -117,43 +208,188 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
 </BaseLayout>
 
 <style>
+  /* ============ 首屏 ============ */
+
   .hero {
-    padding-block: 32px 56px;
-    max-width: 780px;
+    padding-block: 40px 56px;
   }
 
-  .hero-greeting {
-    margin: 0 0 14px;
-    font-size: 0.95rem;
-    color: var(--text-soft);
-    font-weight: 500;
+  .hero-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 48px;
+    align-items: start;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 4px 12px 4px 10px;
+    border: 1px solid var(--accent-line);
+    border-radius: var(--radius-sm);
+    background: var(--accent-soft);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+
+  /* 静态小方块，不做闪烁动画 */
+  .pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--accent);
+    flex-shrink: 0;
   }
 
   .hero-title {
-    margin: 0 0 20px;
-    font-size: clamp(2rem, 1.3rem + 2.8vw, 3rem);
-    line-height: 1.25;
-    letter-spacing: -0.02em;
+    margin: 0 0 14px;
+    font-size: clamp(2.1rem, 1.4rem + 2.6vw, 3rem);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
   }
 
-  .hero-sub {
-    margin: 0 0 30px;
-    font-size: 1.05rem;
+  .hero-latin {
+    font-family: var(--font-mono);
+    font-size: 0.42em;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .hero-tagline {
+    margin: 0 0 14px;
+    font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.28rem);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .hero-intro {
+    margin: 0 0 26px;
+    font-size: 0.98rem;
     color: var(--text-soft);
-    line-height: 1.75;
-    max-width: 620px;
+    line-height: 1.8;
+    max-width: 520px;
   }
 
   .hero-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
   }
+
+  .hero-motto {
+    margin: 20px 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    letter-spacing: 0.06em;
+    color: var(--text-mute);
+  }
+
+  /* ============ 状态读数面板 ============ */
+
+  .readout {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--glow) inset;
+    overflow: hidden;
+  }
+
+  .readout-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+  }
+
+  .readout-head h2 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-soft);
+  }
+
+  .readout-badge {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    color: var(--text-mute);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1px 7px;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+
+  .readout-body {
+    margin: 0;
+  }
+
+  .readout-body > div {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .readout-body > div:last-child {
+    border-bottom: 0;
+  }
+
+  .readout-body dt {
+    font-size: 0.74rem;
+    color: var(--text-mute);
+    padding-top: 2px;
+  }
+
+  .readout-body dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.7;
+    color: var(--text-soft);
+    word-break: break-word;
+  }
+
+  .readout-body dd span {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .readout-note {
+    margin: 0;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-soft);
+    font-size: 0.72rem;
+    line-height: 1.65;
+    color: var(--text-mute);
+  }
+
+  /* ============ 首页板块 ============ */
 
   .home-sections {
     display: flex;
     flex-direction: column;
-    gap: 60px;
+    gap: 56px;
+    padding-top: 8px;
   }
 
   .list {
@@ -164,24 +400,22 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
   .project-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 18px;
+    gap: var(--gap);
   }
 
   .project-card {
     display: flex;
     flex-direction: column;
-    padding: 22px;
+    padding: 20px;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: var(--surface);
     color: var(--text);
-    transition: all 0.18s ease;
+    transition: border-color 0.16s ease;
   }
 
   .project-card:hover {
-    border-color: var(--accent);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+    border-color: var(--accent-line);
     color: var(--text);
   }
 
@@ -189,24 +423,14 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     margin-bottom: 10px;
   }
 
-  .project-status {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 2px 9px;
-    border-radius: 999px;
-  }
-
   .project-card h3 {
     margin: 0 0 8px;
-    font-size: 1.08rem;
+    font-size: 1.06rem;
   }
 
   .project-card p {
     margin: 0 0 16px;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: var(--text-soft);
     line-height: 1.65;
     flex: 1;
@@ -216,5 +440,23 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+  }
+
+  @media (max-width: 900px) {
+    .hero-inner {
+      grid-template-columns: 1fr;
+      gap: 34px;
+    }
+
+    .hero-intro {
+      max-width: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .readout-body > div {
+      grid-template-columns: 1fr;
+      gap: 3px;
+    }
   }
 </style>

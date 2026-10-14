@@ -257,14 +257,46 @@ async function main() {
     const cs = getComputedStyle(document.documentElement);
     return {
       accent: cs.getPropertyValue('--accent').trim(),
+      up: cs.getPropertyValue('--up').trim(),
+      down: cs.getPropertyValue('--down').trim(),
       btnRadius: btn ? getComputedStyle(btn).borderRadius : null,
       bodyBg: getComputedStyle(document.body).backgroundColor,
       fontFamily: getComputedStyle(document.body).fontFamily.slice(0, 40),
     };
   })()`);
-  check('CSS 变量已生效', styles.accent === '#2f5d50', `--accent = ${styles.accent}`);
-  check('组件样式已应用', styles.btnRadius === '999px', `.btn-primary 圆角 = ${styles.btnRadius}`);
+  check('主色变量已生效', /^#[0-9a-f]{6}$/i.test(styles.accent), `--accent = ${styles.accent}`);
+  check(
+    '涨跌色已定义（红涨绿跌）',
+    /^#[0-9a-f]{6}$/i.test(styles.up) && /^#[0-9a-f]{6}$/i.test(styles.down),
+    `--up=${styles.up} --down=${styles.down}`
+  );
+  check('组件样式已应用', styles.btnRadius === '6px', `.btn-primary 圆角 = ${styles.btnRadius}`);
   check('正文字体已应用', /-apple-system|PingFang/.test(styles.fontFamily), styles.fontFamily);
+
+  // ---------- 2b. 终端视觉与可访问性 ----------
+  const design = await evaluate(`(() => {
+    // 页面上不该有无限循环的动画（闪屏 / 扫描线 / 动态背景）
+    let infinite = 0;
+    for (const el of document.querySelectorAll('*')) {
+      const s = getComputedStyle(el);
+      if ((s.animationIterationCount || '').includes('infinite')) infinite++;
+    }
+    return {
+      infinite,
+      skipLink: !!document.querySelector('a[href="#main"]'),
+      mainId: !!document.getElementById('main'),
+      gridBg: getComputedStyle(document.body).backgroundImage.includes('gradient'),
+      monoNumbers: getComputedStyle(document.documentElement)
+        .getPropertyValue('--font-mono')
+        .trim().length > 0,
+      hasStatusPanel: !!document.querySelector('.readout'),
+    };
+  })()`);
+  check('没有无限循环动画', design.infinite === 0, `${design.infinite} 个可疑动画`);
+  check('无障碍跳转链接仍在', design.skipLink && design.mainId);
+  check('终端底纹已应用', design.gridBg);
+  check('等宽数字字体已定义', design.monoNumbers);
+  check('首页有状态面板', design.hasStatusPanel);
 
   // ---------- 3. 图片 ----------
   const brokenImgs = await evaluate(
@@ -287,7 +319,7 @@ async function main() {
   check('偏好写入 localStorage', stored === 'dark', `localStorage.theme = ${stored}`);
 
   const darkBg = await evaluate(`getComputedStyle(document.body).backgroundColor`);
-  check('深色背景生效', darkBg === 'rgb(14, 15, 18)', darkBg);
+  check('深色背景生效', darkBg === 'rgb(7, 12, 21)', darkBg);
 
   await navigate('/');
   const persisted = await evaluate(`document.documentElement.getAttribute('data-theme')`);
@@ -517,9 +549,10 @@ async function main() {
   check('有免责声明', qIndex.disclaimer);
 
   // 数据更新时间要精确到秒，且必须是北京时间格式
-  const stamp = await evaluate(
-    `document.querySelector('.page-head .meta')?.textContent ?? ''`
-  );
+  const stamp = await evaluate(`(() => {
+    const el = document.querySelector('.readout') || document.querySelector('.page-head .meta');
+    return el ? el.textContent : '';
+  })()`);
   const m = stamp.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
   check('数据更新时间精确到秒', Boolean(m), m ? m[1] : stamp.trim().slice(0, 60));
   check(
@@ -527,6 +560,47 @@ async function main() {
     Boolean(m) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(m[1]),
     m ? m[1] : '—'
   );
+
+  // 涨跌配色：红涨绿跌，且不单靠颜色
+  const colorCheck = await evaluate(`(() => {
+    const parse = (s) => (s.match(/\\d+/g) || []).slice(0, 3).map(Number);
+    const upEl = document.querySelector('.kpi .up');
+    const downEl = document.querySelector('.kpi .down');
+    const t = document.querySelector('.table-scroll');
+    return {
+      upColor: upEl ? getComputedStyle(upEl).color : '',
+      downColor: downEl ? getComputedStyle(downEl).color : '',
+      upText: upEl ? upEl.textContent.trim() : '',
+      downText: downEl ? downEl.textContent.trim() : '',
+      overflowX: t ? getComputedStyle(t).overflowX : '',
+      strategyCards: document.querySelectorAll('.strat-card').length,
+      sparklines: document.querySelectorAll('.spark').length,
+      readout: document.querySelectorAll('.readout dt').length,
+    };
+  })()`);
+
+  const upRgb = (colorCheck.upColor.match(/\d+/g) || []).map(Number);
+  const downRgb = (colorCheck.downColor.match(/\d+/g) || []).map(Number);
+
+  check(
+    '上涨用红色（红涨）',
+    upRgb.length >= 3 && upRgb[0] > upRgb[1] && upRgb[0] > upRgb[2],
+    `${colorCheck.upColor} → ${colorCheck.upText}`
+  );
+  check(
+    '下跌用绿色（绿跌）',
+    downRgb.length >= 3 && downRgb[1] > downRgb[0],
+    `${colorCheck.downColor} → ${colorCheck.downText}`
+  );
+  check(
+    '涨跌不只靠颜色：带符号或箭头',
+    /[+▲]/.test(colorCheck.upText) && /[-▼]/.test(colorCheck.downText),
+    `"${colorCheck.upText}" / "${colorCheck.downText}"`
+  );
+  check('量化表格可横向滚动', colorCheck.overflowX === 'auto', `overflow-x: ${colorCheck.overflowX}`);
+  check('策略表现卡片已渲染', colorCheck.strategyCards >= 2, `${colorCheck.strategyCards} 张`);
+  check('卡片含迷你走势', colorCheck.sparklines >= 2, `${colorCheck.sparklines} 条`);
+  check('量化页有状态读数条', colorCheck.readout >= 3, `${colorCheck.readout} 项`);
 
   await navigate('/quant/momentum-rotation/');
   check('详情页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
@@ -544,22 +618,41 @@ async function main() {
   check('月度热力图渲染', qDetail.heat >= 36, `${qDetail.heat} 个格子（3 年 × 12 月）`);
   check('交易记录表有数据', qDetail.trades > 0, `${qDetail.trades} 行`);
 
-  // 图表在手机上不能溢出
+  // 手机宽度下不能横向溢出。
+  // 注意：量化表格是**故意**超出容器并横向滚动的，所以这里检查的是
+  // 文档整体的 scrollWidth —— 被 overflow-x:auto 裁剪的内容不会计入。
   await client.send('Emulation.setDeviceMetricsOverride', {
     width: 390,
     height: 844,
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await navigate('/quant/momentum-rotation/');
-  const qOverflow = await evaluate(
-    `({ scroll: document.documentElement.scrollWidth, view: window.innerWidth })`
-  );
+
+  for (const path of ['/', '/quant/', '/quant/momentum-rotation/', '/quant/research/', '/archive/']) {
+    await navigate(path);
+    const ov = await evaluate(
+      `({ scroll: document.documentElement.scrollWidth, view: window.innerWidth })`
+    );
+    check(
+      `手机宽度无横向溢出 ${path}`,
+      ov.scroll <= ov.view + 1,
+      `scrollWidth=${ov.scroll} innerWidth=${ov.view}`
+    );
+  }
+
+  // 表格必须能横向滚动，否则窄屏读不了
+  await navigate('/quant/');
+  const tbl = await evaluate(`(() => {
+    const w = document.querySelector('.table-scroll');
+    if (!w) return null;
+    return { overflowX: getComputedStyle(w).overflowX, scrollable: w.scrollWidth > w.clientWidth };
+  })()`);
   check(
-    '手机上看板无横向溢出',
-    qOverflow.scroll <= qOverflow.view + 1,
-    `scrollWidth=${qOverflow.scroll} innerWidth=${qOverflow.view}`
+    '窄屏下量化表格可横向滚动',
+    tbl && tbl.overflowX === 'auto' && tbl.scrollable,
+    tbl ? `overflow-x:${tbl.overflowX} 内容宽于容器:${tbl.scrollable}` : '未找到 .table-scroll'
   );
+
   await client.send('Emulation.clearDeviceMetricsOverride');
 
   // 导航高亮
