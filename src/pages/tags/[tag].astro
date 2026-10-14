@@ -10,10 +10,11 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const isPublished = (entry: { data: { draft: boolean } }) =>
     import.meta.env.PROD ? !entry.data.draft : true;
 
-  const [posts, notes, projects] = await Promise.all([
+  const [posts, notes, projects, research] = await Promise.all([
     getCollection('posts'),
     getCollection('notes'),
     getCollection('projects'),
+    getCollection('research'),
   ]);
 
   const all = [
@@ -23,6 +24,13 @@ export const getStaticPaths: GetStaticPaths = async () => {
     ...notes
       .filter(isPublished)
       .map((e) => ({ ...e, kind: '知识库' as const, href: withBase(`/notes/${e.id}`) })),
+    ...research
+      .filter(isPublished)
+      .map((e) => ({
+        ...e,
+        kind: '研究' as const,
+        href: withBase(`/quant/research/${e.id}`),
+      })),
     ...projects
       .filter(isPublished)
       .map((e) => ({ ...e, kind: '作品' as const, href: withBase(`/projects/${e.id}`) })),

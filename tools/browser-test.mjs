@@ -557,7 +557,106 @@ async function main() {
   );
   check('导航高亮"量化"', qActive === '量化', `高亮项 = ${qActive}`);
 
-  // ---------- 11. 404 页 ----------
+  // ---------- 11. 导航结构 ----------
+  console.log('\n【导航结构】');
+  await navigate('/');
+
+  const nav = await evaluate(
+    `[...document.querySelectorAll('.nav-link')].map(a => a.textContent.trim())`
+  );
+  check('顶部导航精简为 5 项', nav.length === 5, nav.join(' / '));
+
+  const AUX = ['搜索', '标签', '归档', '关于'];
+  check(
+    '顶部导航不含辅助项',
+    !nav.some((n) => AUX.includes(n)),
+    nav.join(' / ')
+  );
+
+  const footNav = await evaluate(
+    `[...document.querySelectorAll('.footer-nav a')].map(a => a.textContent.trim())`
+  );
+  check(
+    '页脚保留全部辅助入口',
+    AUX.every((a) => footNav.includes(a)),
+    footNav.join(' / ')
+  );
+
+  // 辅助入口必须真的能打开
+  const auxOk = await evaluate(`(() => {
+    const links = [...document.querySelectorAll('.footer-nav a')];
+    return links.every(a => a.getAttribute('href'));
+  })()`);
+  check('辅助链接都有地址', auxOk);
+
+  // ---------- 12. 归档页 ----------
+  console.log('\n【归档】');
+  await navigate('/archive/');
+  check('归档页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+
+  const arc = await evaluate(`(() => ({
+    years: document.querySelectorAll('.year-head h2').length,
+    items: document.querySelectorAll('.list .item').length,
+    kinds: [...new Set([...document.querySelectorAll('.kind')].map(e => e.textContent.trim()))],
+    hasTagsLink: !!document.querySelector('a[href$="/tags"]'),
+  }))()`);
+  check('归档按年份分组', arc.years >= 1, `${arc.years} 个年份`);
+  check('归档列出全部内容', arc.items >= 8, `${arc.items} 条`);
+  check(
+    '归档覆盖多种内容类型',
+    arc.kinds.length >= 3,
+    arc.kinds.join('、')
+  );
+
+  // ---------- 13. 研究报告 ----------
+  console.log('\n【研究报告】');
+  await navigate('/quant/research/');
+  check('研究列表无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+
+  const rl = await evaluate(`({
+    steps: document.querySelectorAll('.steps li').length,
+    items: document.querySelectorAll('.list .item').length,
+  })`);
+  check('列表页展示了研究框架', rl.steps === 7, `${rl.steps} 个步骤`);
+  check('列表页有研究报告', rl.items > 0, `${rl.items} 篇`);
+
+  await navigate('/quant/research/industry-momentum-neutralization/');
+  check('研究详情无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+
+  const rd = await evaluate(`(() => {
+    const items = [...document.querySelectorAll('.framework-item')];
+    return {
+      total: items.length,
+      linked: document.querySelectorAll('.framework-item a').length,
+      missing: document.querySelectorAll('.framework-item.missing').length,
+      progress: document.querySelector('.framework-progress')?.textContent.trim() ?? '',
+      anchors: [...document.querySelectorAll('.framework-item a')].map(a => a.getAttribute('href')),
+      headingIds: [...document.querySelectorAll('.prose h2')].map(h => h.id),
+    };
+  })()`);
+  check('框架导航有 7 项', rd.total === 7, `${rd.total} 项`);
+  check('7 个小节全部完成', rd.missing === 0 && rd.linked === 7, `进度 ${rd.progress}`);
+
+  const anchorsOk = rd.anchors.every((a) =>
+    rd.headingIds.includes(decodeURIComponent(a.replace(/^#/, '')))
+  );
+  check(
+    '框架锚点都能对上正文标题',
+    anchorsOk && rd.anchors.length === 7,
+    rd.anchors.join(' ')
+  );
+
+  // 点第一个锚点能不能跳到对应位置
+  const jumpId = rd.anchors[0]?.replace(/^#/, '');
+  const jumpedOk = await evaluate(`(() => {
+    const target = document.getElementById(${JSON.stringify(jumpId)});
+    if (!target) return false;
+    target.scrollIntoView();
+    return true;
+  })()`);
+  check('框架锚点可跳转', jumpedOk, jumpId);
+
+  // ---------- 14. 404 页 ----------
   console.log('\n【404】');
   await navigate('/404.html');
   const nf = await evaluate(`document.body.textContent.includes('404')`);

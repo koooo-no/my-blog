@@ -61,6 +61,30 @@ const projects = defineCollection({
 });
 
 /**
+ * 量化研究报告
+ * 文件放在 src/content/research/ 下
+ *
+ * 正文必须包含 RESEARCH_SECTIONS 里的全部小节（见 src/utils/research.ts），
+ * 构建时会检查，缺哪节会直接报错 —— 这样发布出来的研究格式是统一的。
+ */
+const research = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/research' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
+    /** 研究进展 */
+    status: z.enum(['进行中', '已完成', '已暂停', '已归档']).default('进行中'),
+    /** 关联的策略 id，对应 /quant/<id>，填了就会在研究页显示入口 */
+    strategy: z.string().optional(),
+    tags: z.array(z.string()).default([]),
+    featured: z.boolean().default(false),
+    draft: z.boolean().default(false),
+  }),
+});
+
+/**
  * 单页内容（关于我 等）
  * 文件放在 src/content/pages/ 下，比如 about.md
  */
@@ -73,4 +97,4 @@ const pages = defineCollection({
   }),
 });
 
-export const collections = { posts, notes, projects, pages };
+export const collections = { posts, notes, projects, research, pages };

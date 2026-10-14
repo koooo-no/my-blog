@@ -6,9 +6,10 @@ import { withBase } from '../../utils/url';
 const isPublished = (entry: { data: { draft: boolean } }) =>
   import.meta.env.PROD ? !entry.data.draft : true;
 
-const [posts, notes] = await Promise.all([
+const [posts, notes, research] = await Promise.all([
   getCollection('posts'),
   getCollection('notes'),
+  getCollection('research'),
 ]);
 
 const count = new Map<string, number>();
@@ -17,6 +18,7 @@ const sources = new Map<string, Set<string>>();
 for (const [kind, list] of [
   ['博客', posts],
   ['知识库', notes],
+  ['研究', research],
 ] as const) {
   for (const entry of list.filter(isPublished)) {
     for (const tag of entry.data.tags) {

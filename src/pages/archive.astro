@@ -1,0 +1,284 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { withBase } from '../utils/url';
+import { formatDate } from '../utils/date';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const [posts, notes, projects, research] = await Promise.all([
+  getCollection('posts'),
+  getCollection('notes'),
+  getCollection('projects'),
+  getCollection('research'),
+]);
+
+interface Item {
+  date: Date;
+  kind: string;
+  href: string;
+  title: string;
+  description?: string;
+  tags: string[];
+}
+
+const items: Item[] = [
+  ...posts.filter(isPublished).map((e) => ({
+    date: e.data.pubDate,
+    kind: '博客',
+    href: `/blog/${e.id}`,
+    title: e.data.title,
+    description: e.data.description,
+    tags: e.data.tags,
+  })),
+  ...notes.filter(isPublished).map((e) => ({
+    date: e.data.pubDate,
+    kind: '知识库',
+    href: `/notes/${e.id}`,
+    title: e.data.title,
+    description: e.data.description,
+    tags: e.data.tags,
+  })),
+  ...research.filter(isPublished).map((e) => ({
+    date: e.data.pubDate,
+    kind: '研究',
+    href: `/quant/research/${e.id}`,
+    title: e.data.title,
+    description: e.data.description,
+    tags: e.data.tags,
+  })),
+  ...projects.filter(isPublished).map((e) => ({
+    date: e.data.pubDate,
+    kind: '作品',
+    href: `/projects/${e.id}`,
+    title: e.data.title,
+    description: e.data.description,
+    tags: e.data.tags,
+  })),
+].sort((a, b) => b.date.valueOf() - a.date.valueOf());
+
+// 按年份分组
+const byYear = new Map<string, Item[]>();
+for (const item of items) {
+  const y = String(item.date.getFullYear());
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(item);
+}
+const years = [...byYear.keys()].sort((a, b) => Number(b) - Number(a));
+
+// 各类型数量
+const counts = new Map<string, number>();
+for (const item of items) counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
+const kinds = ['博客', '知识库', '研究', '作品'].filter((k) => counts.has(k));
+---
+
+<BaseLayout
+  title="归档"
+  description="站内全部内容的按时间归档。"
+>
+  <div class="container">
+    <header class="page-head">
+      <h1>归档</h1>
+      <p class="lead">
+        共 {items.length} 条内容，{years.length} 个年份。
+      </p>
+      <div class="kind-bar">
+        {
+          kinds.map((k) => (
+            <span class="chip">
+              {k} <span class="chip-count">{counts.get(k)}</span>
+            </span>
+          ))
+        }
+        <a class="chip chip-link" href={withBase('/tags')}>按标签浏览 →</a>
+      </div>
+    </header>
+
+    {
+      items.length === 0 ? (
+        <p class="empty-state">还没有内容。</p>
+      ) : (
+        years.map((year) => (
+          <section class="year-group">
+            <div class="year-head">
+              <h2>{year}</h2>
+              <span class="count">{byYear.get(year)!.length} 条</span>
+            </div>
+            <ol class="list">
+              {byYear.get(year)!.map((item) => (
+                <li class="item">
+                  <time datetime={item.date.toISOString()} class="date">
+                    {formatDate(item.date).replace(/^\d{4}年/, '').replace(/月/, '-').replace(/日/, '')}
+                  </time>
+                  <span class:list={['kind', `kind-${item.kind}`]}>{item.kind}</span>
+                  <div class="body">
+                    <a href={withBase(item.href)} class="title">{item.title}</a>
+                    {item.description && <p class="desc">{item.description}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 32px;
+  }
+
+  .lead {
+    color: var(--text-soft);
+    margin: 0 0 18px;
+  }
+
+  .kind-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 0.86rem;
+  }
+
+  .chip-link {
+    border-style: dashed;
+    color: var(--text-mute);
+  }
+
+  .chip-link:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .chip-count {
+    font-size: 0.74rem;
+    opacity: 0.6;
+  }
+
+  .year-group {
+    margin-top: 44px;
+  }
+
+  .year-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .year-head h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .count {
+    font-size: 0.82rem;
+    color: var(--text-mute);
+  }
+
+  .list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .item {
+    display: grid;
+    grid-template-columns: 62px 58px 1fr;
+    gap: 12px;
+    align-items: baseline;
+    padding: 12px 14px;
+    margin-inline: -14px;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background-color 0.15s ease;
+  }
+
+  .item:last-child {
+    border-bottom: 0;
+  }
+
+  .item:hover {
+    background: var(--bg-soft);
+  }
+
+  .date {
+    font-size: 0.82rem;
+    color: var(--text-mute);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kind {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 2px 0;
+    border-radius: 4px;
+    background: var(--bg-soft);
+    color: var(--text-mute);
+    border: 1px solid var(--border);
+  }
+
+  .item:hover .kind {
+    background: var(--surface);
+  }
+
+  .body {
+    min-width: 0;
+  }
+
+  .title {
+    font-size: 0.98rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .item:hover .title {
+    color: var(--accent);
+  }
+
+  .desc {
+    margin: 3px 0 0;
+    font-size: 0.84rem;
+    color: var(--text-mute);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 600px) {
+    .item {
+      grid-template-columns: 52px 1fr;
+      gap: 6px 10px;
+    }
+
+    .kind {
+      grid-column: 2;
+      justify-self: start;
+      padding: 2px 8px;
+    }
+
+    .body {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

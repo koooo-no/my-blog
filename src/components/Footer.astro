@@ -1,25 +1,45 @@
 ---
-import { SITE, SOCIALS } from '../consts';
-import { withBase } from '../utils/url';
+import { SITE, SOCIALS, FOOTER_NAV } from '../consts';
+import { withBase, stripBase } from '../utils/url';
 
 const year = new Date().getFullYear();
 const range = SITE.since === year ? `${year}` : `${SITE.since}–${year}`;
+
+const path = stripBase(Astro.url.pathname).replace(/\/+$/, '') || '/';
+
+function isCurrent(href: string): boolean {
+  const clean = href.replace(/\/+$/, '') || '/';
+  return clean !== '/' && (path === clean || path.startsWith(clean + '/'));
+}
 ---
 
 <footer class="site-footer">
-  <div class="container footer-inner">
-    <div class="footer-left">
-      <p class="copyright">© {range} {SITE.title}</p>
-      <p class="built">用 Astro 搭建 · 托管于 GitHub Pages</p>
-    </div>
-
-    <nav class="socials" aria-label="联系方式">
+  <div class="container">
+    <!-- 辅助导航：搜索 / 标签 / 归档 / 关于 —— 不占顶部导航位置，但同样可达 -->
+    <nav class="footer-nav" aria-label="辅助导航">
       {
-        SOCIALS.map((s) => (
-          <a href={withBase(s.href)} rel="noopener noreferrer">{s.label}</a>
+        FOOTER_NAV.map((item) => (
+          <a href={withBase(item.href)} class:list={[{ current: isCurrent(item.href) }]}>
+            {item.label}
+          </a>
         ))
       }
     </nav>
+
+    <div class="footer-inner">
+      <div class="footer-left">
+        <p class="copyright">© {range} {SITE.title}</p>
+        <p class="built">用 Astro 搭建 · 托管于 GitHub Pages</p>
+      </div>
+
+      <nav class="socials" aria-label="联系方式">
+        {
+          SOCIALS.map((s) => (
+            <a href={withBase(s.href)} rel="noopener noreferrer">{s.label}</a>
+          ))
+        }
+      </nav>
+    </div>
   </div>
 </footer>
 
@@ -27,8 +47,32 @@ const range = SITE.since === year ? `${year}` : `${SITE.since}–${year}`;
   .site-footer {
     border-top: 1px solid var(--border);
     background: var(--bg-soft);
-    padding-block: 32px;
+    padding-block: 28px 32px;
     margin-top: 40px;
+  }
+
+  .footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    padding-bottom: 18px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .footer-nav a {
+    font-size: 0.88rem;
+    color: var(--text-soft);
+    transition: color 0.15s ease;
+  }
+
+  .footer-nav a:hover {
+    color: var(--accent);
+  }
+
+  .footer-nav a.current {
+    color: var(--accent);
+    font-weight: 500;
   }
 
   .footer-inner {

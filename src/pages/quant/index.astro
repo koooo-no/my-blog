@@ -11,15 +11,15 @@ const pctCell = (v: number) => pct(v, 1, true);
 ---
 
 <BaseLayout
-  title="量化研究"
-  description="个人量化策略的回测记录与指标。"
+  title="量化"
+  description="个人量化策略的回测记录、指标与研究报告。"
   noindex
 >
   <div class="container">
     <header class="page-head">
-      <h1>量化研究</h1>
+      <h1>量化</h1>
       <p class="lead">
-        个人在做的量化策略研究记录。所有结果都是<strong>回测模拟</strong>，不是实盘。
+        策略回测看板，以及按统一框架撰写的研究报告。所有结果都是<strong>回测模拟</strong>，不是实盘。
       </p>
       <p class="meta">
         <span>数据更新于 {quant.updated}</span>
@@ -28,6 +28,11 @@ const pctCell = (v: number) => pct(v, 1, true);
         <span aria-hidden="true">·</span>
         <span>{strategies.length} 个策略</span>
       </p>
+
+      <nav class="sub-nav" aria-label="量化栏目导航">
+        <span class="sub-current">策略看板</span>
+        <a href={withBase('/quant/research')}>研究报告 →</a>
+      </nav>
     </header>
 
     <aside class="disclaimer" role="note">
@@ -141,6 +146,30 @@ const pctCell = (v: number) => pct(v, 1, true);
 <style>
   .page-head {
     margin-bottom: 26px;
+  }
+
+  /* 栏目内部导航：策略看板 / 研究报告 */
+  .sub-nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+
+  .sub-current {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .sub-nav a {
+    color: var(--text-soft);
+  }
+
+  .sub-nav a:hover {
+    color: var(--accent);
   }
 
   .lead {

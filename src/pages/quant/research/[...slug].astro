@@ -1,0 +1,226 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ResearchFramework from '../../../components/ResearchFramework.astro';
+import { withBase } from '../../../utils/url';
+import { formatDate, readingTime } from '../../../utils/date';
+import { missingSections } from '../../../utils/research';
+
+/**
+ * 研究报告详情
+ *
+ * 构建时会强制检查「研究框架」的 7 个小节是否齐全。
+ * 缺失时：
+ *   - 生产构建（pnpm build）→ 直接报错中止，坏格式发不出去
+ *   - 开发预览（pnpm dev）  → 只警告，方便边写边看
+ */
+export const getStaticPaths: GetStaticPaths = async () => {
+  const isPublished = (entry: { data: { draft: boolean } }) =>
+    import.meta.env.PROD ? !entry.data.draft : true;
+
+  const all = (await getCollection('research')).filter(isPublished);
+
+  const problems: string[] = [];
+  for (const entry of all) {
+    const missing = missingSections(entry.body);
+    if (!missing.length) continue;
+
+    const msg = `src/content/research/${entry.id}.md 缺少：${missing.join('、')}`;
+    if (import.meta.env.PROD) {
+      problems.push(msg);
+    } else {
+      console.warn(`[research] ⚠ ${msg}`);
+    }
+  }
+
+  if (problems.length) {
+    throw new Error(
+      '\n研究报告不符合统一框架，构建已中止：\n' +
+        problems.map((p) => `  · ${p}`).join('\n') +
+        '\n\n请照着 templates/research.md 补齐这 7 个小节：\n' +
+        '  研究假设 / 数据来源 / 方法与参数 / 回测结果 / 成本与风险 / 局限性 / 后续计划\n' +
+        '（标题文字必须完全一致，页面锚点依赖它）\n'
+    );
+  }
+
+  return all.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+};
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+const minutes = readingTime(entry.body);
+const updated =
+  entry.data.updatedDate && entry.data.updatedDate.valueOf() !== entry.data.pubDate.valueOf()
+    ? entry.data.updatedDate
+    : null;
+---
+
+<BaseLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  type="article"
+  publishedTime={entry.data.pubDate}
+  tags={entry.data.tags}
+  noindex
+>
+  <article class="container-narrow">
+    <p class="back">
+      <a href={withBase('/quant/research')}>← 全部研究报告</a>
+    </p>
+
+    <header class="post-header">
+      <p class="eyebrow">量化研究</p>
+      <h1>{entry.data.title}</h1>
+      <p class="description">{entry.data.description}</p>
+
+      <div class="meta">
+        <span class="status">{entry.data.status}</span>
+        <time datetime={entry.data.pubDate.toISOString()}>{formatDate(entry.data.pubDate)}</time>
+        <span aria-hidden="true">·</span>
+        <span>约 {minutes} 分钟</span>
+        {updated && <><span aria-hidden="true">·</span><span>更新于 {formatDate(updated)}</span></>}
+      </div>
+
+      {
+        entry.data.tags.length > 0 && (
+          <div class="tags">
+            {entry.data.tags.map((t) => (
+              <a href={withBase(`/tags/${encodeURIComponent(t)}`)} class="tag">{t}</a>
+            ))}
+          </div>
+        )
+      }
+
+      {
+        entry.data.strategy && (
+          <p class="strategy-link">
+            对应策略看板：<a href={withBase(`/quant/${entry.data.strategy}`)}>查看回测指标 →</a>
+          </p>
+        )
+      }
+    </header>
+
+    <ResearchFramework body={entry.body} />
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <footer class="post-foot">
+      <p>
+        本文按知序的<strong>统一研究框架</strong>撰写。框架的意义不在于格式整齐，
+        而在于强迫自己写清楚「成本与风险」和「局限性」这两节。
+      </p>
+      <p class="disclaimer">
+        本文为个人研究记录，不构成任何投资建议。回测结果均为历史模拟数据，不代表未来收益。
+      </p>
+      <p class="links">
+        <a href={withBase('/quant/research')}>← 全部研究报告</a>
+        <span aria-hidden="true">·</span>
+        <a href={withBase('/quant')}>量化看板</a>
+        <span aria-hidden="true">·</span>
+        <a href={withBase('/rss.xml')}>RSS</a>
+      </p>
+    </footer>
+  </article>
+</BaseLayout>
+
+<style>
+  .back {
+    margin: 0 0 20px;
+    font-size: 0.88rem;
+  }
+
+  .post-header {
+    margin-bottom: 32px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .eyebrow {
+    margin: 0 0 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .post-header h1 {
+    margin-bottom: 14px;
+  }
+
+  .description {
+    margin: 0 0 16px;
+    color: var(--text-soft);
+    font-size: 1.02rem;
+    line-height: 1.75;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.84rem;
+    color: var(--text-mute);
+  }
+
+  .status {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.74rem;
+    font-weight: 600;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .strategy-link {
+    margin: 16px 0 0;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+    font-size: 0.88rem;
+    color: var(--text-soft);
+  }
+
+  .post-foot {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--text-soft);
+    line-height: 1.8;
+  }
+
+  .post-foot p {
+    margin: 0 0 14px;
+  }
+
+  .disclaimer {
+    padding: 12px 16px;
+    border-left: 3px solid var(--border-strong);
+    background: var(--bg-soft);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 0.84rem;
+    color: var(--text-mute);
+  }
+
+  .links {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.88rem;
+  }
+</style>

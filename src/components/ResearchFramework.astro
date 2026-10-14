@@ -1,0 +1,135 @@
+---
+/**
+ * 研究框架导航
+ *
+ * 显示 7 个固定小节，已写的可以点击跳转，没写的灰显 ——
+ * 一眼就能看出这篇研究还缺什么。
+ */
+import { checkSections } from '../utils/research';
+
+interface Props {
+  body?: string;
+}
+
+const { body } = Astro.props;
+const sections = checkSections(body);
+const doneCount = sections.filter((s) => s.found).length;
+---
+
+<nav class="framework" aria-label="研究框架">
+  <div class="framework-head">
+    <span class="framework-title">研究框架</span>
+    <span class="framework-progress">{doneCount} / {sections.length}</span>
+  </div>
+
+  <ol class="framework-list">
+    {
+      sections.map((s) => (
+        <li class:list={['framework-item', { missing: !s.found }]}>
+          {s.found ? (
+            <a href={`#${s.key}`}>
+              <span class="num">{String(s.index).padStart(2, '0')}</span>
+              <span class="label">{s.key}</span>
+            </a>
+          ) : (
+            <span class="pending">
+              <span class="num">{String(s.index).padStart(2, '0')}</span>
+              <span class="label">{s.key}</span>
+              <span class="tag-missing">待补</span>
+            </span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>
+
+<style>
+  .framework {
+    margin: 0 0 44px;
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+  }
+
+  .framework-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .framework-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-soft);
+  }
+
+  .framework-progress {
+    font-size: 0.78rem;
+    color: var(--text-mute);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .framework-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+  }
+
+  .framework-item a,
+  .framework-item .pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 11px 4px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 0.82rem;
+    color: var(--text);
+    transition: all 0.15s ease;
+  }
+
+  .framework-item a:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .framework-item .pending {
+    opacity: 0.5;
+    border-style: dashed;
+    cursor: default;
+  }
+
+  .num {
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+
+  .missing .num {
+    color: var(--text-mute);
+  }
+
+  .label {
+    white-space: nowrap;
+  }
+
+  .tag-missing {
+    font-size: 0.66rem;
+    color: var(--text-mute);
+    padding-left: 2px;
+  }
+</style>

@@ -1,0 +1,265 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { withBase } from '../../../utils/url';
+import { formatDate } from '../../../utils/date';
+import { RESEARCH_SECTIONS } from '../../../utils/research';
+
+const isPublished = (entry: { data: { draft: boolean } }) =>
+  import.meta.env.PROD ? !entry.data.draft : true;
+
+const all = (await getCollection('research')).filter(isPublished);
+const featured = all.filter((e) => e.data.featured);
+const rest = all.filter((e) => !e.data.featured);
+
+const sortDesc = <T extends { data: { pubDate: Date } }>(list: T[]) =>
+  [...list].sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+const groups = [
+  { label: '重点', items: sortDesc(featured) },
+  { label: '全部研究', items: sortDesc(rest) },
+].filter((g) => g.items.length > 0);
+---
+
+<BaseLayout
+  title="量化研究"
+  description="按统一框架记录的量化研究：假设、数据、方法、结果、成本、局限与后续计划。"
+  noindex
+>
+  <div class="container">
+    <header class="page-head">
+      <h1>量化研究</h1>
+      <p class="lead">
+        每一篇研究都按<strong>同一套框架</strong>写。不是为了让文章整齐好看，
+        而是为了让结论可检验、过程可复现、错误能被自己发现。
+      </p>
+    </header>
+
+    <section class="framework-doc">
+      <h2>研究框架</h2>
+      <p class="note">
+        七个部分缺一不可。缺失的部分会在文章里标出来 ——
+        写不出「局限性」的研究，通常说明还没想清楚。
+      </p>
+      <ol class="steps">
+        {
+          RESEARCH_SECTIONS.map((s, i) => (
+            <li>
+              <span class="step-num">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <span class="step-name">{s.key}</span>
+                <span class="step-hint">{s.hint}</span>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+      <p class="howto">
+        写新研究：复制 <code>templates/research.md</code> 到
+        <code>src/content/research/</code> 下改名即可。
+        构建时会自动检查七个部分是否齐全，缺了会报错。
+      </p>
+    </section>
+
+    {
+      groups.length === 0 ? (
+        <p class="empty-state">还没有研究报告。从 templates/research.md 复制一份开始写吧。</p>
+      ) : (
+        groups.map((g) => (
+          <section class="group">
+            <div class="section-head">
+              <h2>{g.label}</h2>
+              <span class="count">{g.items.length} 篇</span>
+            </div>
+            <div class="list">
+              {g.items.map((r) => (
+                <article class="item">
+                  <h3>
+                    <a href={withBase(`/quant/research/${r.id}/`)}>{r.data.title}</a>
+                  </h3>
+                  <p class="desc">{r.data.description}</p>
+                  <div class="meta">
+                    <time datetime={r.data.pubDate.toISOString()}>
+                      {formatDate(r.data.pubDate)}
+                    </time>
+                    <span class="status">{r.data.status}</span>
+                    {r.data.tags.slice(0, 4).map((t) => (
+                      <a href={withBase(`/tags/${encodeURIComponent(t)}`)} class="tag">{t}</a>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))
+      )
+    }
+
+    <p class="back-quant">
+      <a href={withBase('/quant')}>← 返回量化看板</a>
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head {
+    margin-bottom: 34px;
+  }
+
+  .lead {
+    color: var(--text-soft);
+    max-width: 640px;
+    margin: 0;
+    line-height: 1.8;
+  }
+
+  .framework-doc {
+    margin-bottom: 52px;
+    padding: 24px 26px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+  }
+
+  .framework-doc h2 {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+  }
+
+  .note {
+    margin: 0 0 20px;
+    font-size: 0.88rem;
+    color: var(--text-soft);
+    line-height: 1.75;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px 28px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    padding-top: 3px;
+    flex-shrink: 0;
+  }
+
+  .step-name {
+    display: block;
+    font-size: 0.94rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .step-hint {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-mute);
+    line-height: 1.6;
+  }
+
+  .howto {
+    margin: 22px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    color: var(--text-mute);
+    line-height: 1.75;
+  }
+
+  .howto code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .group {
+    margin-bottom: 44px;
+  }
+
+  .count {
+    font-size: 0.82rem;
+    color: var(--text-mute);
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .item {
+    padding: 20px 18px;
+    margin-inline: -18px;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background-color 0.15s ease;
+  }
+
+  .item:last-child {
+    border-bottom: 0;
+  }
+
+  .item:hover {
+    background: var(--bg-soft);
+  }
+
+  .item h3 {
+    margin: 0 0 6px;
+    font-size: 1.08rem;
+    line-height: 1.45;
+  }
+
+  .item h3 a {
+    color: var(--text);
+  }
+
+  .item:hover h3 a {
+    color: var(--accent);
+  }
+
+  .desc {
+    margin: 0 0 10px;
+    font-size: 0.92rem;
+    color: var(--text-soft);
+    line-height: 1.65;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--text-mute);
+  }
+
+  .status {
+    padding: 1px 9px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .back-quant {
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+  }
+</style>
