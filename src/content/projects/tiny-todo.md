@@ -3,7 +3,6 @@ title: 极简待办
 description: 一个只有三件事的待办清单，为了治好我的清单焦虑。
 pubDate: 2026-04-02
 tags: ['小工具', 'React']
-link: https://example.com/todo
 status: 已完成
 featured: false
 ---

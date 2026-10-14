@@ -4,11 +4,11 @@
 
 export const SITE = {
   /** 网站标题，显示在浏览器标签和页面顶部 */
-  title: '我的小站',
+  title: 'ZhiXu · 知序',
   /** 一句话简介，用于首页和搜索引擎 */
   description: '记录思考、积累知识、展示作品。',
-  /** 你的名字 / 昵称 */
-  author: '你的名字',
+  /** 你的名字 / 昵称，显示在页脚版权处 */
+  author: 'koooo-no',
   /** 页脚版权显示的年份起算 */
   since: 2026,
   /** 语言，中文用 zh-CN */
@@ -27,8 +27,7 @@ export const NAV = [
 
 /** 社交 / 联系方式，显示在页脚。不需要的删掉即可 */
 export const SOCIALS = [
-  { label: 'GitHub', href: 'https://github.com/yourname' },
-  { label: '邮箱', href: 'mailto:you@example.com' },
+  { label: 'GitHub', href: 'https://github.com/koooo-no' },
   { label: 'RSS', href: '/rss.xml' },
 ];
 

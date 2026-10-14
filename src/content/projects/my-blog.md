@@ -3,8 +3,8 @@ title: 个人博客站点
 description: 你正在看的这个网站，从零搭建的静态博客。
 pubDate: 2026-10-13
 tags: ['Astro', '网站']
-link: https://example.com
-repo: https://github.com/yourname/my-blog
+link: https://koooo-no.github.io/my-blog/
+repo: https://github.com/koooo-no/my-blog
 status: 长期维护
 featured: true
 ---

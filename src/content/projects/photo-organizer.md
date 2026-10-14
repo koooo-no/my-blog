@@ -3,7 +3,6 @@ title: 照片整理脚本
 description: 按拍摄日期自动把照片分文件夹，顺便重命名。
 pubDate: 2026-02-18
 tags: ['Python', '自动化']
-repo: https://github.com/yourname/photo-organizer
 status: 已归档
 featured: false
 ---
