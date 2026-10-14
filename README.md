@@ -493,7 +493,7 @@ draft: false
 
 ```jsonc
 {
-  "updated": "2026-10-09",          // 数据更新日期
+  "updated": "2026-10-14T19:37:17+08:00",  // 更新时间，带时区
   "benchmarkName": "沪深300",
   "currency": "CNY",
   "strategies": [

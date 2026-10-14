@@ -23,7 +23,9 @@ ROOT = Path(__file__).resolve().parent.parent.parent   # 项目根目录
 OUT = ROOT / "src" / "data" / "quant.json"
 
 data = {
-    "updated": "2026-10-14",
+    # 带时区的时间戳。只写日期（"2026-10-14"）也能用，
+    # 但页面就只显示到日；带时间必须带时区，否则会差 8 小时
+    "updated": "2026-10-14T19:37:17+08:00",
     "benchmarkName": "沪深300",
     "currency": "CNY",
     "strategies": [

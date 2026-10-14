@@ -6,7 +6,7 @@ import MonthlyHeatmap from '../../components/charts/MonthlyHeatmap.astro';
 import { quant, METRIC_VIEW } from '../../utils/quant';
 import type { QuantStrategy } from '../../utils/quant';
 import { withBase } from '../../utils/url';
-import { pct, num } from '../../utils/format';
+import { pct, num, formatDateTime } from '../../utils/format';
 
 export async function getStaticPaths() {
   return quant.strategies.map((strategy) => ({
@@ -183,7 +183,7 @@ function toneOf(v: number, kind: string): string {
     }
 
     <p class="footnote">
-      数据更新于 {quant.updated} · 由个人研究脚本生成
+      数据更新于 {formatDateTime(quant.updated)} · 由个人研究脚本生成
     </p>
   </div>
 </BaseLayout>

@@ -19,6 +19,38 @@ export function signedNum(value: number, digits = 2): string {
   return `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
 }
 
+/**
+ * 时间戳 → "2026-10-14 19:36:05"（北京时间）
+ *
+ * 兼容只有日期的旧值（没有 T 就原样返回），
+ * 这样数据源没升级时页面也不会显示成 "Invalid Date"。
+ */
+export function formatDateTime(value: string): string {
+  if (!value) return '';
+  if (!value.includes('T')) return value;
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(d)
+    .reduce<Record<string, string>>((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
 /** "2024-01-02" → "2024-01" */
 export function shortMonth(iso: string): string {
   return iso.slice(0, 7);

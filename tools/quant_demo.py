@@ -19,12 +19,21 @@
     python3 tools/quant_demo.py
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import numpy as np
 
 TRADING_DAYS_PER_YEAR = 252
 RISK_FREE = 0.02
+
+# 中国没有夏令时，固定 +08:00 即可，不依赖系统时区数据库。
+# 这样无论脚本跑在 GitHub 的 UTC 机器上还是本地，时间都是北京时间。
+CST = timezone(timedelta(hours=8))
+
+
+def now_cst() -> datetime:
+    return datetime.now(CST)
+
 
 # 固定生成跨度 —— 不要改，改了历史数据就会变
 HORIZON_START = date(2024, 1, 1)
@@ -170,8 +179,8 @@ def make_trades(all_dates, seed):
 
 
 def build(end_date: date | None = None):
-    """生成完整的数据结构；end_date 默认取今天"""
-    end = end_date or date.today()
+    """生成完整的数据结构；end_date 默认取北京时间今天"""
+    end = end_date or now_cst().date()
     if end < HORIZON_START:
         end = HORIZON_START
 
@@ -250,7 +259,8 @@ def build(end_date: date | None = None):
 
     return {
         "_说明": "这是演示数据，不是真实回测结果。换成自己的数据时保持结构不变即可。",
-        "updated": end_iso,
+        # 带时分秒 + 时区，前端会按北京时间显示
+        "updated": now_cst().isoformat(timespec="seconds"),
         "benchmarkName": "沪深300",
         "currency": "CNY",
         "strategies": strategies,

@@ -24,9 +24,9 @@
 import argparse
 import json
 import math
+import re
 import subprocess
 import sys
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,6 +69,21 @@ def validate(data) -> list[str]:
     for key in ("updated", "benchmarkName", "strategies"):
         if key not in data:
             raise ValidationError(f"缺少顶层字段: {key}")
+
+    # updated 支持两种写法：纯日期，或**带时区**的时间戳
+    #   "2026-10-14"
+    #   "2026-10-14T19:36:05+08:00"
+    #
+    # 带时间就强制要求时区：没有时区的话，Node 会按运行环境的本地时区解析，
+    # 而 GitHub Actions 是 UTC —— 页面显示出来会差 8 小时。
+    if not isinstance(data["updated"], str) or not re.match(
+        r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:?\d{2}))?$",
+        data["updated"],
+    ):
+        raise ValidationError(
+            f'updated 格式不对: {data["updated"]!r}；'
+            "应为 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM:SS+08:00（带时间时必须带时区）"
+        )
 
     if not isinstance(data["strategies"], list) or not data["strategies"]:
         raise ValidationError("strategies 必须是非空数组")
@@ -187,23 +202,38 @@ def main() -> int:
     for w in warnings:
         print(f"  ⚠ {w}")
 
-    payload = json.dumps(data, ensure_ascii=False, indent=1)
-
     if args.dry_run:
         print("✓ 校验通过（--dry-run，未写文件）")
         return 0
 
-    old = DATA.read_text(encoding="utf-8") if DATA.exists() else None
-    if old == payload:
-        print(f"✓ 校验通过；数据没有变化，保持原样（更新日期 {data['updated']}）")
+    # ---- 只在数据真的变了时才写文件 ----
+    #
+    # updated 字段带时分秒，每次运行都不一样。如果直接整体比对，
+    # 每次跑都会判定为"有变化"，于是天天产生一条只有时间戳不同的提交。
+    # 所以比对时把 updated 排除掉：**内容没变就什么都不做，包括不更新时间戳**。
+    # 这样「数据更新于」表示的是数据最后一次真正变化的时刻，更有意义。
+    old_data = None
+    if DATA.exists():
+        try:
+            old_data = json.loads(DATA.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            old_data = None
+
+    def without_updated(d):
+        return {k: v for k, v in d.items() if k != "updated"}
+
+    if isinstance(old_data, dict) and without_updated(old_data) == without_updated(data):
+        print(f"✓ 校验通过；数据内容没有变化，保留原更新时间 {old_data.get('updated', '')}")
         return 0
+
+    payload = json.dumps(data, ensure_ascii=False, indent=1)
 
     DATA.parent.mkdir(parents=True, exist_ok=True)
     DATA.write_text(payload, encoding="utf-8")
 
     kb = len(payload.encode("utf-8")) / 1024
     print(f"✓ 已更新 {DATA.relative_to(ROOT)}  ({kb:.0f} KB)")
-    print(f"  更新日期: {data['updated']}")
+    print(f"  更新时间: {data['updated']}")
     for s in data["strategies"]:
         m = s["metrics"]
         print(

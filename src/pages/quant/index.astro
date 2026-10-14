@@ -3,7 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import EquityChart from '../../components/charts/EquityChart.astro';
 import { quant } from '../../utils/quant';
 import { withBase } from '../../utils/url';
-import { pct, num } from '../../utils/format';
+import { pct, num, formatDateTime } from '../../utils/format';
 
 const strategies = quant.strategies;
 
@@ -22,7 +22,7 @@ const pctCell = (v: number) => pct(v, 1, true);
         策略回测看板，以及按统一框架撰写的研究报告。所有结果都是<strong>回测模拟</strong>，不是实盘。
       </p>
       <p class="meta">
-        <span>数据更新于 {quant.updated}</span>
+        <span>数据更新于 {formatDateTime(quant.updated)}</span>
         <span aria-hidden="true">·</span>
         <span>基准：{quant.benchmarkName}</span>
         <span aria-hidden="true">·</span>

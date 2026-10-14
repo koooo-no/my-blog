@@ -516,6 +516,18 @@ async function main() {
   check('净值曲线已渲染', qIndex.polylines >= 4 && qIndex.pointsOk, `${qIndex.polylines} 条折线`);
   check('有免责声明', qIndex.disclaimer);
 
+  // 数据更新时间要精确到秒，且必须是北京时间格式
+  const stamp = await evaluate(
+    `document.querySelector('.page-head .meta')?.textContent ?? ''`
+  );
+  const m = stamp.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+  check('数据更新时间精确到秒', Boolean(m), m ? m[1] : stamp.trim().slice(0, 60));
+  check(
+    '时间格式为北京时间',
+    Boolean(m) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(m[1]),
+    m ? m[1] : '—'
+  );
+
   await navigate('/quant/momentum-rotation/');
   check('详情页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
 
