@@ -404,7 +404,7 @@ node tools/browser-test.mjs --url http://127.0.0.1:4322/my-blog
 
 | 路径 | 内容 |
 | --- | --- |
-| `/quant` | **策略看板** —— 数据驱动，每天自动更新 |
+| `/quant` | **策略看板** —— 数据驱动，由本地项目导出更新 |
 | `/quant/research` | **研究报告** —— 按统一框架撰写的文章 |
 
 `/quant` 页面顶部有「研究报告 →」入口，两边互相可达。
@@ -484,55 +484,74 @@ draft: false
 - **月度收益热力图**：行是年份，列是 1–12 月，颜色深浅表示收益高低
 - **指标卡**：年化、超额、最大回撤、夏普、卡玛、波动率、胜率、盈亏比、交易笔数、最长回撤天数、累计收益
 - **交易记录表**
-- **每天自动更新**（见下方）
+- **数据由本地项目导出更新**（见下方）
 - 每页顶部有**免责声明**（见下方「重要提醒」）
 
-### 每天自动更新
+### 数据从哪来
 
-`.github/workflows/deploy.yml` 里已经配好了定时任务：
+**量化数据不在 GitHub Actions 里生成。** CI 只负责构建和部署。
+
+原因是真实数据在本地：`A_stock_quant` 项目有 38 GB（行情库 `market.db` 就 1.4 GB），
+GitHub 的构建环境里既没有这份数据，也没有策略运行环境。
+
+所以流程是**本地导出 → 提交 → CI 构建部署**：
 
 ```
-每天 UTC 00:30（北京时间 08:30）
-  → 跑 tools/update-quant-data.py 生成最新数据
-  → 数据有变化就自动提交
-  → 重新构建并部署
+本地：/usr/bin/python3 A_stock_quant/tools/export_for_site.py
+        ↓  写出 src/data/quant.json（只含净值、指标、成交统计）
+本地：git commit && git push
+        ↓
+CI  ：pnpm build → 部署到 GitHub Pages
 ```
 
-**你不需要做任何事**，第二天早上网站上的数据就是新的。
+导出脚本在**本地项目**里（`A_stock_quant/tools/export_for_site.py`），
+不在这个仓库 —— 因为本仓库是公开的，策略代码不能进来。
 
-三个细节：
+### 定时自动推送
 
-- **数据没变就不会提交**（比如周末没有新交易日），不会刷出一堆空提交
-- **数据格式不对会直接报错、中止部署** —— 宁可让线上保持上一版好数据，
-  也不要把一份坏数据发上去
-- 想在 Actions 页面手动点一下立即执行：仓库 → **Actions** → 选这个工作流 → **Run workflow**
+本地已经配好 launchd 定时任务，每天 18:30 自动导出并推送：
 
-> GitHub 的定时任务在整点高峰期可能延迟几分钟到几十分钟，这是正常的。
-> 另外仓库连续 60 天没有提交活动时 GitHub 会自动暂停定时任务 ——
-> 本工作流每天都会提交数据，所以不会被暂停。
+```bash
+# 安装（只需一次）
+cp ~/A_stock_quant/tools/com.zhixu.site-update.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.zhixu.site-update.plist
+
+# 立即测一次
+launchctl start com.zhixu.site-update
+
+# 看日志
+tail -f ~/A_stock_quant/logs/site_update.log
+```
+
+脚本的安全设计：
+
+- 只在 `src/data/quant.json` **真的变化**时才提交
+- 网站仓库有其它未提交改动时**直接退出**，不会碰你的工作区
+- 只做快进合并，**绝不 rebase / 强推**
+- 推送失败会保留本地提交，下次自动重试
+
+> ⚠️ 推送走 SSH（`git@github.com:koooo-no/my-blog.git`），
+> 需要先把 `~/.ssh/id_ed25519.pub` 加到 GitHub 的 SSH keys 里。
+> 脚本显式指定 SSH 地址，不会改动 `origin`，GitHub Desktop 照常走 HTTPS。
+
+### 数据校验
+
+导出脚本在写文件前会做两件事：
+
+1. **与冻结基线交叉核对** —— 自己算的年化/回撤/累计收益和
+   `baseline/R1_FROZEN/results/r1_reference_metrics.json` 差超过 0.5% 就中止，
+   防止把算错的数字发出去
+2. 构建时再校验一遍 JSON 结构，格式不对直接让构建失败
+
+网站还留了一道保险：`tools/update-quant-data.py` 生成的是**演示数据**，
+它会拒绝覆盖带 `_source` 字段的真实数据，除非显式加 `--overwrite-real`。
 
 ### 换成你自己的数据
 
 数据来自 `src/data/quant.json`。**页面代码完全不用动**，只要产出这个文件就行。
 
-两种接法：
-
-#### 接法一：把你的脚本放进项目（推荐）
-
-在 `tools/quant/` 下放两个文件：
-
-| 文件 | 作用 |
-| --- | --- |
-| `tools/quant/update.py` | 你的脚本，负责写出 `src/data/quant.json` |
-| `tools/quant/requirements.txt` | （可选）你的脚本需要的额外 Python 包 |
-
-`tools/update-quant-data.py` 会自动发现并使用它 —— **存在 `update.py` 就用你的，不存在就用演示数据**。
-
-工作流每天都会跑它，你的脚本怎么算、从哪拿数据（数据库、API、CSV），都随你。
-
-#### 接法二：本地跑完直接替换文件
-
-自己写脚本输出这个 JSON，覆盖 `src/data/quant.json`，然后提交推送。
+参考 `A_stock_quant/tools/export_for_site.py`，改成读你的回测输出即可。
+字段说明见 `tools/quant/README.md`。
 
 #### JSON 结构
 

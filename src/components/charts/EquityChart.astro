@@ -29,12 +29,20 @@ const PAD = { top: 18, right: 14, bottom: 30, left: 58 };
 const plotW = W - PAD.left - PAD.right;
 const plotH = height - PAD.top - PAD.bottom;
 
-// 全部换算成百分比收益
-const series = lines.map((l) => ({
-  ...l,
-  kind: l.kind ?? 'main',
-  pctValues: l.values.map((v) => (v - 1) * 100),
-}));
+// 全部换算成百分比收益。
+//
+// 关键：按**每条线自己的起点**归一，而不是假设传进来的就是 1.0 起始的比值。
+// 这样 equity 传 1.0 起始的比值（数据规范）或传原始净值（如 1000000）都能画对。
+// 之前硬编码 (v-1)*100，一遇到原始净值就画出 +160000000% 的坐标轴，
+// 而且构建完全不报错 —— 属于静默画错，所以这里必须容错。
+const series = lines.map((l) => {
+  const base = l.values[0] || 1;
+  return {
+    ...l,
+    kind: l.kind ?? 'main',
+    pctValues: l.values.map((v) => (v / base - 1) * 100),
+  };
+});
 
 const allValues = series.flatMap((s) => s.pctValues);
 

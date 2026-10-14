@@ -184,7 +184,29 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="只生成和校验，不写文件")
     ap.add_argument("--demo", action="store_true", help="强制使用演示数据")
+    ap.add_argument(
+        "--overwrite-real",
+        action="store_true",
+        help="允许用演示数据覆盖由本地项目导出的真实数据（危险）",
+    )
     args = ap.parse_args()
+
+    # ---- 保险：绝不覆盖真实数据 ----
+    #
+    # src/data/quant.json 可能是本地 A_stock_quant 项目导出的真实回测结果
+    # （带 _source 字段）。这个脚本生成的是**演示数据**，一旦覆盖就会把
+    # 真实结果冲掉，而且因为工作流会自动提交，损失会直接进仓库历史。
+    # 所以这里显式拒绝，必须手动加 --overwrite-real 才能继续。
+    if DATA.exists() and not args.overwrite_real:
+        try:
+            existing = json.loads(DATA.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            existing = None
+        if isinstance(existing, dict) and existing.get("_source"):
+            print("✗ 当前 quant.json 是真实导出数据，拒绝用演示数据覆盖。", file=sys.stderr)
+            print(f"  来源: {existing.get('_source')}", file=sys.stderr)
+            print("  如确实要覆盖，请加 --overwrite-real。", file=sys.stderr)
+            return 1
 
     try:
         data = generate(args.demo)

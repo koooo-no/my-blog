@@ -544,8 +544,13 @@ async function main() {
       disclaimer: !!document.querySelector('.disclaimer'),
     };
   })()`);
-  check('对比表包含策略和基准', qIndex.strategies === 2, `${qIndex.strategies} 个策略 + 基准`);
-  check('净值曲线已渲染', qIndex.polylines >= 4 && qIndex.pointsOk, `${qIndex.polylines} 条折线`);
+  // 策略数量随真实数据变化，只要求"至少有一个策略 + 基准"，不写死条数
+  check('对比表包含策略和基准', qIndex.strategies >= 1, `${qIndex.strategies} 个策略 + 基准`);
+  check(
+    '净值曲线已渲染',
+    qIndex.polylines >= 2 && qIndex.pointsOk,
+    `${qIndex.polylines} 条折线`
+  );
   check('有免责声明', qIndex.disclaimer);
 
   // 数据更新时间要精确到秒，且必须是北京时间格式
@@ -598,11 +603,17 @@ async function main() {
     `"${colorCheck.upText}" / "${colorCheck.downText}"`
   );
   check('量化表格可横向滚动', colorCheck.overflowX === 'auto', `overflow-x: ${colorCheck.overflowX}`);
-  check('策略表现卡片已渲染', colorCheck.strategyCards >= 2, `${colorCheck.strategyCards} 张`);
-  check('卡片含迷你走势', colorCheck.sparklines >= 2, `${colorCheck.sparklines} 条`);
+  check('策略表现卡片已渲染', colorCheck.strategyCards >= 1, `${colorCheck.strategyCards} 张`);
+  check('卡片含迷你走势', colorCheck.sparklines >= 1, `${colorCheck.sparklines} 条`);
   check('量化页有状态读数条', colorCheck.readout >= 3, `${colorCheck.readout} 项`);
 
-  await navigate('/quant/momentum-rotation/');
+  // 详情页地址从看板动态取，避免换数据后测试失效
+  await navigate('/quant/');
+  const firstStrategy = await evaluate(
+    `document.querySelector('.strat-card h3 a')?.getAttribute('href') ?? ''`
+  );
+  if (!firstStrategy) throw new Error('看板上找不到策略卡片，无法进入详情页');
+  await navigate(firstStrategy.replace(/^.*\/my-blog/, ''));
   check('详情页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
 
   const qDetail = await evaluate(`(() => {
@@ -615,7 +626,7 @@ async function main() {
   })()`);
   check('三个图表都在（曲线/回撤/热力图）', qDetail.charts >= 6, `${qDetail.charts} 个 svg`);
   check('指标卡数量正确', qDetail.metrics >= 11, `${qDetail.metrics} 个指标`);
-  check('月度热力图渲染', qDetail.heat >= 36, `${qDetail.heat} 个格子（3 年 × 12 月）`);
+  check('月度热力图渲染', qDetail.heat >= 12, `${qDetail.heat} 个格子`);
   check('交易记录表有数据', qDetail.trades > 0, `${qDetail.trades} 行`);
 
   // 手机宽度下不能横向溢出。
@@ -628,7 +639,7 @@ async function main() {
     mobile: true,
   });
 
-  for (const path of ['/', '/quant/', '/quant/momentum-rotation/', '/quant/research/', '/archive/']) {
+  for (const path of ['/', '/quant/', '/quant/research/', '/archive/', '/about/']) {
     await navigate(path);
     const ov = await evaluate(
       `({ scroll: document.documentElement.scrollWidth, view: window.innerWidth })`

@@ -32,6 +32,8 @@ from urllib.parse import unquote, urlsplit
 SVGSVG_RE = re.compile(r'<svg[^>]*viewBox="([^"]+)"[^>]*>(.*?)</svg>', re.S)
 POLYLINE_RE = re.compile(r'<polyline[^>]*points="([^"]*)"')
 CIRCLE_RE = re.compile(r'<circle[^>]*\bcx="([-\d.]+)"[^>]*\bcy="([-\d.]+)"')
+# 纵轴刻度文字，例如 "+50%" / "-20%"
+AXIS_PCT_RE = re.compile(r"[+-]\d[\d,]*(?:\.\d+)?%")
 
 
 def load_pages(root: Path):
@@ -165,6 +167,19 @@ def main():
             if over:
                 problems["图表超出画布"].append((rel, over))
 
+        # ---- 图表坐标轴刻度是否离谱 ----
+        # 数据量级和图表假设不一致时（例如净值传了原始金额 1000000 而不是 1.0 起始的比值），
+        # 纵轴会被画成 +160000000% 这种数字。构建不报错、曲线也还在画布内，
+        # 只有真的看一眼才发现。所以这里直接量刻度文字。
+        for label in AXIS_PCT_RE.findall(text):
+            try:
+                value = float(label.rstrip("%").replace("+", ""))
+            except ValueError:
+                continue
+            if abs(value) > 1_000_000:
+                problems["图表刻度离谱"].append((rel, f"纵轴刻度 {label}"))
+                break
+
         # ---- 链接 ----
         for attr, target in re.findall(r'\b(href|src)="([^"]*)"', text):
             if not target:
@@ -209,6 +224,7 @@ def main():
         "图片不存在",
         "图片缺少 alt",
         "图表超出画布",
+        "图表刻度离谱",
         "重复 id",
         "h1 数量异常",
         "缺少 title",

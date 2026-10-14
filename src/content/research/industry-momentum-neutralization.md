@@ -4,7 +4,6 @@ description: 把行业动量做行业内部中性化，检验它到底来自行�
 pubDate: 2026-10-12
 updatedDate: 2026-10-14
 status: 进行中
-strategy: momentum-rotation
 tags: ['动量', '因子', '中性化', 'A股']
 featured: true
 draft: false
