@@ -25,14 +25,13 @@ const recentProjects = projects.slice(0, HOME_LIMITS.projects);
 
 <BaseLayout>
   <section class="container hero">
-    <p class="hero-greeting">你好，我是 {SITE.author} 👋</p>
-    <h1 class="hero-title">{SITE.description}</h1>
-    <p class="hero-sub">
-      这里放我的文章、笔记和做过的东西。想到什么写什么，慢慢积累。
-    </p>
+    <p class="hero-greeting">{SITE.motto}</p>
+    <h1 class="hero-title">{SITE.tagline}</h1>
+    <p class="hero-sub">{SITE.intro}</p>
     <div class="hero-actions">
       <a class="btn btn-primary" href={withBase('/blog')}>开始阅读</a>
-      <a class="btn" href={withBase('/about')}>关于我</a>
+      <a class="btn" href={withBase('/quant')}>量化研究</a>
+      <a class="btn" href={withBase('/about')}>关于知序</a>
     </div>
   </section>
 

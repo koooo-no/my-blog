@@ -25,7 +25,8 @@ const {
   noindex = false,
 } = Astro.props;
 
-const pageTitle = title ? `${title} · ${SITE.title}` : `${SITE.title} · ${SITE.description}`;
+// 默认标题用标语而不是 description —— description 较长，适合放进 meta，不适合当标题
+const pageTitle = title ? `${title} · ${SITE.title}` : `${SITE.title} · ${SITE.tagline}`;
 const site = Astro.site ?? new URL('https://example.com');
 
 // 无论 Astro.url.pathname 是否已带 base 前缀，这里都能得到正确的绝对地址
