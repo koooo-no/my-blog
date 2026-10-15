@@ -35,7 +35,7 @@ updatedDate: 2026-10-14
 内容都是 Markdown 文件。构建出来就是一堆 HTML，托管在 GitHub Pages 上。
 
 - 文章、笔记、作品分别放在 `posts` / `notes` / `projects` 三个板块
-- 量化看板的数据由脚本自动生成，每天更新一次
+- 量化看板的数据来自本地研究项目的**冻结基线回测**，重建回测后脚本会自动同步
 - 想了解技术细节，看[仓库](https://github.com/koooo-no/my-blog)里的 README
 
 ## 联系
