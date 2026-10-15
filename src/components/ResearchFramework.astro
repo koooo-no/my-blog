@@ -27,14 +27,14 @@ const doneCount = sections.filter((s) => s.found).length;
       sections.map((s) => (
         <li class:list={['framework-item', { missing: !s.found }]}>
           {s.found ? (
-            <a href={`#${s.key}`}>
+            <a href={`#${s.heading}`}>
               <span class="num">{String(s.index).padStart(2, '0')}</span>
-              <span class="label">{s.key}</span>
+              <span class="label">{s.heading}</span>
             </a>
           ) : (
             <span class="pending">
               <span class="num">{String(s.index).padStart(2, '0')}</span>
-              <span class="label">{s.key}</span>
+              <span class="label">{s.heading}</span>
               <span class="tag-missing">待补</span>
             </span>
           )}

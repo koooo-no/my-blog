@@ -13,6 +13,13 @@ export interface ResearchSection {
   key: string;
   /** 这一节该写什么 */
   hint: string;
+  /**
+   * 允许的替代标题。
+   *
+   * 前瞻跟踪类的研究用「回测结果」并不准确，所以允许写成「跟踪结果」——
+   * 检查时按同一节计算，进度条和缺失提示都不受影响。
+   */
+  aliases?: string[];
 }
 
 export const RESEARCH_SECTIONS: ResearchSection[] = [
@@ -31,6 +38,7 @@ export const RESEARCH_SECTIONS: ResearchSection[] = [
   {
     key: '回测结果',
     hint: '净值、回撤、分年度表现。别只放表现最好的那一段。',
+    aliases: ['跟踪结果'],
   },
   {
     key: '成本与风险',
@@ -51,6 +59,13 @@ export interface SectionCheck {
   key: string;
   hint: string;
   found: boolean;
+  /**
+   * 实际命中的二级标题。
+   *
+   * 用了别名时它和 key 不一样（例如 key 是「回测结果」、正文写的是「跟踪结果」），
+   * 生成锚点必须用它，否则跳转会落到空处。
+   */
+  heading: string;
 }
 
 /** 取出 Markdown 正文里所有二级标题的文字 */
@@ -65,12 +80,16 @@ export function headings(body: string | undefined): string[] {
  */
 export function checkSections(body: string | undefined): SectionCheck[] {
   const found = headings(body);
-  return RESEARCH_SECTIONS.map((s, i) => ({
-    index: i + 1,
-    key: s.key,
-    hint: s.hint,
-    found: found.includes(s.key),
-  }));
+  return RESEARCH_SECTIONS.map((s, i) => {
+    const hit = [s.key, ...(s.aliases ?? [])].find((candidate) => found.includes(candidate));
+    return {
+      index: i + 1,
+      key: s.key,
+      hint: s.hint,
+      found: Boolean(hit),
+      heading: hit ?? s.key,
+    };
+  });
 }
 
 /** 返回缺失的小节描述；全部齐了返回空数组 */
