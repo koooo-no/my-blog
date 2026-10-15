@@ -9,6 +9,14 @@ import { pct, num, signedPct, formatDateTime } from '../../utils/format';
 const strategies = quant.strategies;
 
 /**
+ * 记录期太短时，年化数字是靠外推得来的，会严重放大 ——
+ * 17 个交易日亏 8.6% 按年化算是 -74%，但这个数字没有统计意义。
+ * 所以短记录一律改看**累计收益**，年化只在详情页里作为参考列出。
+ */
+const SHORT_RECORD_DAYS = 60;
+const isShortRecord = (s: (typeof strategies)[number]) => s.dates.length < SHORT_RECORD_DAYS;
+
+/**
  * 组合对比图：只纳入与第一个策略**日期完全一致**的策略。
  * 日期对不齐就各自看详情页的图，不硬凑到一张图上误导人。
  */
@@ -53,7 +61,7 @@ const combinedLines = [
         </dl>
       </div>
       <p class="lead">
-        策略回测看板与研究报告。所有结果都是<strong>回测模拟</strong>，不是实盘，也不代表未来收益。
+        <strong>前瞻跟踪</strong>记录：策略从 2026-09-14 起同一时点开跑，逐日累积，没有经过任何事后优化。全部为<strong>模拟盘</strong>，不接券商、不下真单。
       </p>
 
       <nav class="sub-nav" aria-label="量化栏目导航">
@@ -66,7 +74,8 @@ const combinedLines = [
       <strong>免责声明</strong>
       <p>
         本页内容仅为个人研究记录，<strong>不构成任何投资建议</strong>，也不构成任何形式的要约或承诺。
-        回测结果均为历史模拟数据，不代表未来表现；除特别说明外未计入交易成本、冲击成本与流动性限制。
+        以下为<strong>前瞻跟踪</strong>记录：策略参数在起跑前已冻结，记录期间未做任何调整，
+        交易成本按项目自身的成本模型计入。全部为模拟盘，不接券商、不下真单，历史记录不代表未来表现。
         任何人据此操作，风险自负。
       </p>
     </aside>
@@ -100,18 +109,40 @@ const combinedLines = [
 
                 <dl class="kpi">
                   <div class="kpi-main">
-                    <dt>年化收益</dt>
-                    <dd class={s.metrics.annualReturn >= 0 ? 'up' : 'down'}>
+                    <dt>{isShortRecord(s) ? '累计收益' : '年化收益'}</dt>
+                    <dd
+                      class={
+                        (isShortRecord(s) ? s.metrics.totalReturn : s.metrics.annualReturn) >= 0
+                          ? 'up'
+                          : 'down'
+                      }
+                    >
                       <span class="arrow" aria-hidden="true">
-                        {s.metrics.annualReturn >= 0 ? '▲' : '▼'}
+                        {(isShortRecord(s) ? s.metrics.totalReturn : s.metrics.annualReturn) >= 0
+                          ? '▲'
+                          : '▼'}
                       </span>
-                      {signedPct(s.metrics.annualReturn)}
+                      {signedPct(
+                        isShortRecord(s) ? s.metrics.totalReturn : s.metrics.annualReturn
+                      )}
                     </dd>
                   </div>
                   <div>
-                    <dt>超额收益</dt>
-                    <dd class={s.metrics.excessAnnualReturn >= 0 ? 'up' : 'down'}>
-                      {signedPct(s.metrics.excessAnnualReturn)}
+                    <dt>{isShortRecord(s) ? '累计超额' : '超额收益'}</dt>
+                    <dd
+                      class={isShortRecord(s)
+                        ? s.metrics.totalReturn - s.metrics.benchmarkTotalReturn >= 0
+                          ? 'up'
+                          : 'down'
+                        : s.metrics.excessAnnualReturn >= 0
+                          ? 'up'
+                          : 'down'}
+                    >
+                      {signedPct(
+                        isShortRecord(s)
+                          ? s.metrics.totalReturn - s.metrics.benchmarkTotalReturn
+                          : s.metrics.excessAnnualReturn
+                      )}
                     </dd>
                   </div>
                   <div>
@@ -134,7 +165,7 @@ const combinedLines = [
 
                 <footer class="card-foot">
                   <span class="range">
-                    {s.dates[0]} ~ {s.dates[s.dates.length - 1]}
+                    {s.dates[0]} ~ {s.dates[s.dates.length - 1]} · {s.dates.length} 个交易日
                   </span>
                   <a href={withBase(`/quant/${s.id}`)}>完整报告 →</a>
                 </footer>
@@ -160,7 +191,7 @@ const combinedLines = [
           <thead>
             <tr>
               <th scope="col">策略</th>
-              <th scope="col" class="num">年化收益</th>
+              <th scope="col" class="num">累计收益</th>
               <th scope="col" class="num">超额收益</th>
               <th scope="col" class="num">最大回撤</th>
               <th scope="col" class="num">夏普</th>
@@ -177,11 +208,15 @@ const combinedLines = [
                     <a href={withBase(`/quant/${s.id}`)}>{s.name}</a>
                     <span class="sub">{s.subtitle}</span>
                   </th>
-                  <td class={`num strong ${s.metrics.annualReturn >= 0 ? 'up' : 'down'}`}>
-                    {signedPct(s.metrics.annualReturn)}
+                  <td class={`num strong ${s.metrics.totalReturn >= 0 ? 'up' : 'down'}`}>
+                    {signedPct(s.metrics.totalReturn)}
                   </td>
-                  <td class={`num ${s.metrics.excessAnnualReturn >= 0 ? 'up' : 'down'}`}>
-                    {signedPct(s.metrics.excessAnnualReturn)}
+                  <td
+                    class={`num ${s.metrics.totalReturn - s.metrics.benchmarkTotalReturn >= 0
+                      ? 'up'
+                      : 'down'}`}
+                  >
+                    {signedPct(s.metrics.totalReturn - s.metrics.benchmarkTotalReturn)}
                   </td>
                   <td class="num down">{pct(s.metrics.maxDrawdown, 1)}</td>
                   <td class="num">{num(s.metrics.sharpe)}</td>
@@ -195,8 +230,12 @@ const combinedLines = [
             }
             <tr class="bench-row">
               <th scope="row" class="row-head">基准（{quant.benchmarkName}）</th>
-              <td class={`num ${(strategies[0]?.metrics.benchmarkAnnualReturn ?? 0) >= 0 ? 'up' : 'down'}`}>
-                {signedPct(strategies[0]?.metrics.benchmarkAnnualReturn ?? 0)}
+              <td
+                class={`num ${(strategies[0]?.metrics.benchmarkTotalReturn ?? 0) >= 0
+                  ? 'up'
+                  : 'down'}`}
+              >
+                {signedPct(strategies[0]?.metrics.benchmarkTotalReturn ?? 0)}
               </td>
               <td class="num">—</td>
               <td class="num">—</td>

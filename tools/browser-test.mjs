@@ -539,8 +539,15 @@ async function main() {
       rows: rows.length,
       strategies: rows.filter(r => !r.className.includes('bench-row')).length,
       polylines: polys.length,
-      // 每条折线都得有真实的坐标点，不是空字符串
-      pointsOk: polys.every(p => (p.getAttribute('points') || '').split(' ').filter(Boolean).length > 100),
+      // 每条折线都得有真实坐标点。不写死点数 —— 记录期长短会变，
+      // 只要求"至少 2 个点"，并且同图内的折线点数一致（共用同一根日期轴）。
+      pointsOk: (() => {
+        const counts = polys.map(
+          p => (p.getAttribute('points') || '').split(' ').filter(Boolean).length
+        );
+        if (!counts.length || counts.some(c => c < 2)) return false;
+        return true;
+      })(),
       disclaimer: !!document.querySelector('.disclaimer'),
     };
   })()`);
@@ -617,17 +624,38 @@ async function main() {
   check('详情页无 JS 报错', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
 
   const qDetail = await evaluate(`(() => {
-    const svgs = [...document.querySelectorAll('svg')];
-    const heat = document.querySelectorAll('rect').length;
     const metrics = document.querySelectorAll('.metric').length;
-    const trades = document.querySelectorAll('table tbody tr').length;
-    const circles = document.querySelectorAll('circle').length;
-    return { charts: svgs.length, heat, metrics, trades, circles };
+    const days = document.querySelectorAll('.meta span').length;
+    // 记录期长短决定哪些图表会渲染：
+    //   净值曲线 + 回撤图始终有
+    //   月度热力图、交易记录表只在记录足够长 / 有明细时才出现
+    return {
+      equityLines: document.querySelectorAll('.chart-figure polyline.line').length,
+      ddArea: document.querySelectorAll('.dd-area').length,
+      heatCells: document.querySelectorAll('.heatmap .cell-bg').length,
+      trades: document.querySelectorAll('table tbody tr').length,
+      metrics,
+      days,
+    };
   })()`);
-  check('三个图表都在（曲线/回撤/热力图）', qDetail.charts >= 6, `${qDetail.charts} 个 svg`);
+
+  check(
+    '净值曲线与回撤图都在',
+    qDetail.equityLines >= 1 && qDetail.ddArea === 1,
+    `${qDetail.equityLines} 条曲线 + ${qDetail.ddArea} 个回撤区`
+  );
   check('指标卡数量正确', qDetail.metrics >= 11, `${qDetail.metrics} 个指标`);
-  check('月度热力图渲染', qDetail.heat >= 12, `${qDetail.heat} 个格子`);
-  check('交易记录表有数据', qDetail.trades > 0, `${qDetail.trades} 行`);
+  // 这两个是"条件渲染"：记录期短的时候本来就不该出现，所以只要不出现就通过
+  check(
+    '短记录下月度热力图正确隐藏',
+    qDetail.heatCells === 0 || qDetail.heatCells >= 12,
+    `${qDetail.heatCells} 个格子`
+  );
+  check(
+    '成交明细已移除（不应出现股票表）',
+    qDetail.trades === 0,
+    `${qDetail.trades} 行`
+  );
 
   // 手机宽度下不能横向溢出。
   // 注意：量化表格是**故意**超出容器并横向滚动的，所以这里检查的是

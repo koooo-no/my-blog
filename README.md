@@ -298,7 +298,7 @@ my-blog/
 
 - 策略看板（纯 SVG 图表，零前端依赖）
 - 研究报告统一框架 + **构建时强制校验**
-- 数据由本地项目导出后自动同步（回测重跑后才会变化）
+- **前瞻跟踪**数据每日由本地项目导出后自动同步
 
 **体验**
 
@@ -538,8 +538,8 @@ tail -f ~/A_stock_quant/logs/site_update.log
 
 导出脚本在写文件前会做两件事：
 
-1. **与冻结基线交叉核对** —— 自己算的年化/回撤/累计收益和
-   `baseline/R1_FROZEN/results/r1_reference_metrics.json` 差超过 0.5% 就中止，
+1. **与前瞻日志交叉核对** —— 自己算的累计收益和
+   `output/phase8_forward_daily_log.csv` 里的 `cumulative_return` 差超过 0.2% 就中止，
    防止把算错的数字发出去
 2. 构建时再校验一遍 JSON 结构，格式不对直接让构建失败
 
@@ -550,7 +550,7 @@ tail -f ~/A_stock_quant/logs/site_update.log
 
 数据来自 `src/data/quant.json`。**页面代码完全不用动**，只要产出这个文件就行。
 
-参考 `A_stock_quant/tools/export_for_site.py`，改成读你的回测输出即可。
+参考 `A_stock_quant/tools/export_for_site.py`，改成读你的数据输出即可。
 字段说明见 `tools/quant/README.md`。
 
 #### JSON 结构

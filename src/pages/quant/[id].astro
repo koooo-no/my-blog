@@ -29,6 +29,14 @@ function formatMetric(v: number, kind: string): string {
 }
 
 // 红涨绿跌：正数用红、负数用绿，和全站涨跌配色保持一致
+/**
+ * 记录期短于 60 个交易日时，年化数字是靠外推得来的，会严重放大
+ * （17 天亏 8.6% → 年化 -74%，但毫无统计意义）。
+ * 这种情况下列表改看累计值，年化只作为"参考"保留。
+ */
+const SHORT_RECORD_DAYS = 60;
+const isShort = s.dates.length < SHORT_RECORD_DAYS;
+
 function toneOf(v: number, kind: string): string {
   if (kind !== 'pct' && kind !== 'pctAbs') return '';
   return v > 0 ? 'up' : v < 0 ? 'down' : '';
@@ -76,16 +84,30 @@ function toneOf(v: number, kind: string): string {
     <aside class="disclaimer" role="note">
       <strong>免责声明</strong>
       <p>
-        本文档为个人研究记录，<strong>不构成任何投资建议</strong>。以下全部为历史回测模拟结果，
-        不代表未来表现；除特别说明外未计入交易成本、冲击成本与流动性限制。据此操作，风险自负。
+        本文档为个人研究记录，<strong>不构成任何投资建议</strong>。
+        以下为<strong>前瞻跟踪</strong>记录（模拟盘，不接券商、不下真单），
+        策略参数在起跑前已冻结、记录期间未做任何调整。历史记录不代表未来表现。据此操作，风险自负。
       </p>
     </aside>
 
     <section class="metrics">
       <h2>关键指标</h2>
+      {isShort && (
+        <p class="note">
+          记录期只有 {s.dates.length} 个交易日，<strong>年化、夏普、卡玛这类指标由短区间外推得来，
+          数字会被大幅放大，不具备统计意义</strong>。这个阶段应当只看累计收益和最大回撤。
+        </p>
+      )}
       <dl class="metric-grid">
         {
-          METRIC_VIEW.map((mv) => {
+          (isShort
+            ? METRIC_VIEW.map((mv) =>
+                mv.key === 'annualReturn'
+                  ? { ...mv, hint: '短区间外推，仅供参考' }
+                  : mv
+              )
+            : METRIC_VIEW
+          ).map((mv) => {
             const raw = m[mv.key];
             const value = typeof raw === 'number' ? raw : 0;
             return (
@@ -114,6 +136,7 @@ function toneOf(v: number, kind: string): string {
       <h2>净值曲线</h2>
       <p class="note">
         纵轴为相对起点的累计收益。虚线为基准（{quant.benchmarkName}）。
+        {isShort && `目前只有 ${s.dates.length} 个交易日，曲线还看不出趋势。`}
       </p>
       <EquityChart
         dates={s.dates}
@@ -131,10 +154,10 @@ function toneOf(v: number, kind: string): string {
       <DrawdownChart dates={s.dates} values={s.equity} height={200} />
     </section>
 
-    <section class="block">
+    <section class="block" hidden={isShort}>
       <h2>月度收益</h2>
       <p class="note">按自然月聚合。留空的是回测区间没有覆盖到的月份。</p>
-      <MonthlyHeatmap monthly={s.monthly} />
+      {!isShort && <MonthlyHeatmap monthly={s.monthly} />}
     </section>
 
     <section class="block">
