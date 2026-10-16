@@ -1,7 +1,7 @@
 {
  "_说明": "前瞻跟踪记录（模拟盘，非实盘）。由本地 A_stock_quant 项目导出，仅含净值、指标与聚合统计，不含任何策略逻辑或持仓明细。",
  "_source": "A_stock_quant / output/phase8_forward_daily_log.csv",
- "updated": "2026-10-15T21:15:26+08:00",
+ "updated": "2026-10-16T18:30:04+08:00",
  "benchmarkName": "沪深300",
  "currency": "CNY",
  "strategies": [
@@ -35,7 +35,8 @@
     "2026-10-09",
     "2026-10-12",
     "2026-10-13",
-    "2026-10-14"
+    "2026-10-14",
+    "2026-10-15"
    ],
    "equity": [
     1.0,
@@ -54,7 +55,8 @@
     0.993005,
     0.981215,
     0.973863,
-    0.951819
+    0.951819,
+    0.929359
    ],
    "benchmark": [
     1.0,
@@ -73,21 +75,22 @@
     0.963655,
     0.957121,
     0.954375,
-    0.941429
+    0.941429,
+    0.929896
    ],
    "metrics": {
-    "totalReturn": -0.0482,
-    "annualReturn": -0.519,
-    "benchmarkTotalReturn": -0.0586,
-    "benchmarkAnnualReturn": -0.5913,
-    "excessAnnualReturn": 0.0722,
-    "volatility": 0.1688,
-    "maxDrawdown": -0.0617,
-    "maxDrawdownDays": 11,
-    "sharpe": -3.193,
-    "calmar": -8.406,
-    "winRate": 0.25,
-    "profitFactor": 0.46,
+    "totalReturn": -0.0706,
+    "annualReturn": -0.6414,
+    "benchmarkTotalReturn": -0.0701,
+    "benchmarkAnnualReturn": -0.6385,
+    "excessAnnualReturn": -0.0029,
+    "volatility": 0.1816,
+    "maxDrawdown": -0.0839,
+    "maxDrawdownDays": 12,
+    "sharpe": -3.642,
+    "calmar": -7.647,
+    "winRate": 0.2353,
+    "profitFactor": 0.364,
     "turnover": 0.0,
     "tradeCount": 12
    },
@@ -100,7 +103,7 @@
     {
      "y": 2026,
      "m": 10,
-     "r": -0.0352
+     "r": -0.058
     }
    ],
    "trades": []
