@@ -594,20 +594,52 @@ async function main() {
   const upRgb = (colorCheck.upColor.match(/\d+/g) || []).map(Number);
   const downRgb = (colorCheck.downColor.match(/\d+/g) || []).map(Number);
 
+  // 涨跌配色检查不能假设"一定有上涨元素" ——
+  // 数据可能整段都是负的，那时页面上根本不会有 .up。
+  // 所以按实际存在的那一侧来验，但至少要有一侧存在。
+  const hasUp = Boolean(colorCheck.upText);
+  const hasDown = Boolean(colorCheck.downText);
+
   check(
-    '上涨用红色（红涨）',
-    upRgb.length >= 3 && upRgb[0] > upRgb[1] && upRgb[0] > upRgb[2],
-    `${colorCheck.upColor} → ${colorCheck.upText}`
+    '涨跌配色元素存在',
+    hasUp || hasDown,
+    `上涨元素 ${hasUp ? '有' : '无'} / 下跌元素 ${hasDown ? '有' : '无'}`
   );
   check(
-    '下跌用绿色（绿跌）',
-    downRgb.length >= 3 && downRgb[1] > downRgb[0],
-    `${colorCheck.downColor} → ${colorCheck.downText}`
+    '红涨',
+    !hasUp || (upRgb.length >= 3 && upRgb[0] > upRgb[1] && upRgb[0] > upRgb[2]),
+    hasUp ? `${colorCheck.upColor} → ${colorCheck.upText}` : '本段无正值，跳过'
+  );
+  check(
+    '绿跌',
+    !hasDown || (downRgb.length >= 3 && downRgb[1] > downRgb[0]),
+    hasDown ? `${colorCheck.downColor} → ${colorCheck.downText}` : '本段无负值，跳过'
   );
   check(
     '涨跌不只靠颜色：带符号或箭头',
-    /[+▲]/.test(colorCheck.upText) && /[-▼]/.test(colorCheck.downText),
+    (!hasUp || /[+▲]/.test(colorCheck.upText)) &&
+      (!hasDown || /[-▼]/.test(colorCheck.downText)),
     `"${colorCheck.upText}" / "${colorCheck.downText}"`
+  );
+  // 另外单独验一次 CSS 变量本身：不管数据正负，--up 必须是红系、--down 必须是绿系
+  const cssUpDown = await evaluate(`(() => {
+    const cs = getComputedStyle(document.documentElement);
+    return { up: cs.getPropertyValue('--up').trim(), down: cs.getPropertyValue('--down').trim() };
+  })()`);
+  const hexToRgb = (hex) => {
+    const m = hex.replace('#', '').match(/../g);
+    return m ? m.map((x) => parseInt(x, 16)) : [];
+  };
+  const cssUp = hexToRgb(cssUpDown.up);
+  const cssDown = hexToRgb(cssUpDown.down);
+  check(
+    'CSS 变量：涨=红、跌=绿',
+    cssUp.length === 3 &&
+      cssUp[0] > cssUp[1] &&
+      cssUp[0] > cssUp[2] &&
+      cssDown.length === 3 &&
+      cssDown[1] > cssDown[0],
+    `--up=${cssUpDown.up} --down=${cssUpDown.down}`
   );
   check('量化表格可横向滚动', colorCheck.overflowX === 'auto', `overflow-x: ${colorCheck.overflowX}`);
   check('策略表现卡片已渲染', colorCheck.strategyCards >= 1, `${colorCheck.strategyCards} 张`);
