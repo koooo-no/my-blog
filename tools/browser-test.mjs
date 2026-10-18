@@ -304,6 +304,91 @@ async function main() {
   check('等宽数字字体已定义', design.monoNumbers);
   check('首页有状态面板', design.hasStatusPanel);
 
+  // ---------- 2d. 对比度：两套主题都必须达到 WCAG AA ----------
+  //
+  // 这一组是补上的：之前浅色模式有一批文字只有 3.0~4.0:1，
+  // 肉眼看"有点淡"，但没有自动检查就一直没人发现。
+  // 现在每套主题抽查 4 个页面，任何一处低于 AA 都算失败。
+  const CONTRAST_AUDIT = `(() => {
+    const parse = (s) => {
+      const m = (s || '').match(/[\\d.]+/g);
+      if (!m) return null;
+      let r = +m[0], g = +m[1], b = +m[2];
+      const a = m[3] === undefined ? 1 : +m[3];
+      // color-mix 会输出 0~1 范围，归一到 0~255
+      if (r <= 1 && g <= 1 && b <= 1 && (r + g + b) > 0 && (r + g + b) <= 3) {
+        r *= 255; g *= 255; b *= 255;
+      }
+      return { r, g, b, a };
+    };
+    const lum = (c) => {
+      const f = (v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+    };
+    const ratio = (a, b) => {
+      const l1 = lum(a), l2 = lum(b);
+      return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    };
+    const bgOf = (el) => {
+      let cur = el;
+      while (cur && cur !== document.documentElement) {
+        const c = parse(getComputedStyle(cur).backgroundColor);
+        if (c && c.a > 0.85) return c;
+        cur = cur.parentElement;
+      }
+      return parse(getComputedStyle(document.documentElement).backgroundColor) || { r: 255, g: 255, b: 255, a: 1 };
+    };
+    const bad = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.children.length && !el.textContent.trim()) continue;
+      const txt = [...el.childNodes]
+        .filter((n) => n.nodeType === 3)
+        .map((n) => n.textContent.trim())
+        .join(' ')
+        .trim();
+      if (!txt) continue;
+      const st = getComputedStyle(el);
+      if (st.visibility === 'hidden' || st.display === 'none' || +st.opacity < 0.15) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      const fg = parse(st.color);
+      if (!fg) continue;
+      const cr = ratio(fg, bgOf(el));
+      const size = parseFloat(st.fontSize);
+      const large = size >= 24 || (size >= 18.66 && +st.fontWeight >= 600);
+      const need = large ? 3 : 4.5;
+      if (cr < need) {
+        bad.push({
+          t: txt.slice(0, 18),
+          c: (el.className || '').toString().slice(0, 26),
+          cr: Math.round(cr * 100) / 100,
+          need,
+          fg: st.color,
+        });
+      }
+    }
+    return bad;
+  })()`;
+
+  const CONTRAST_PAGES = ['/', '/quant/', '/notes/walk-forward-validation/'];
+  for (const theme of ['light', 'dark']) {
+    await evaluate(`localStorage.setItem('theme', ${JSON.stringify(theme)})`);
+    for (const page of CONTRAST_PAGES) {
+      await navigate(page);
+      const bad = (await evaluate(CONTRAST_AUDIT)) || [];
+      const worst = bad.slice(0, 3).map((x) => `${x.cr}:1 "${x.t}"${x.c}`);
+      check(
+        `对比度 AA · ${theme} · ${page}`,
+        bad.length === 0,
+        bad.length ? `${bad.length} 处不足 例如 ${worst.join(' | ')}` : '全部达标'
+      );
+    }
+  }
+  await evaluate(`localStorage.removeItem('theme')`);
+
   // ---------- 3. 图片 ----------
   const brokenImgs = await evaluate(
     `[...document.images].filter(i => !i.complete || i.naturalWidth === 0).map(i => i.src)`
