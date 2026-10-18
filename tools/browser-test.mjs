@@ -270,7 +270,13 @@ async function main() {
     /^#[0-9a-f]{6}$/i.test(styles.up) && /^#[0-9a-f]{6}$/i.test(styles.down),
     `--up=${styles.up} --down=${styles.down}`
   );
-  check('组件样式已应用', styles.btnRadius === '6px', `.btn-primary 圆角 = ${styles.btnRadius}`);
+  // 按钮现在是切角造型（右下角削掉一块），圆角是 4 值形式，
+  // 所以只要求左上角仍是 6px，不写死整个字符串。
+  check(
+    '组件样式已应用',
+    (styles.btnRadius || '').startsWith('6px'),
+    `.btn-primary 圆角 = ${styles.btnRadius}`
+  );
   check('正文字体已应用', /-apple-system|PingFang/.test(styles.fontFamily), styles.fontFamily);
 
   // ---------- 2b. 终端视觉与可访问性 ----------

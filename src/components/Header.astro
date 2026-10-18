@@ -73,7 +73,7 @@ function isActive(href: string): boolean {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    background-color: color-mix(in srgb, var(--bg) 90%, transparent);
     backdrop-filter: saturate(150%) blur(12px);
     -webkit-backdrop-filter: saturate(150%) blur(12px);
     border-bottom: 1px solid var(--border);
@@ -94,8 +94,19 @@ function isActive(href: string): boolean {
       var(--accent-line) 78%,
       transparent
     );
-    opacity: 0.55;
+    opacity: 0.75;
     pointer-events: none;
+    background-size: 200% 100%;
+    animation: header-flow 6s linear infinite;
+  }
+
+  @keyframes header-flow {
+    from {
+      background-position: 0% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
   }
 
   .header-inner {

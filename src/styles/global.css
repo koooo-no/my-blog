@@ -44,6 +44,15 @@
   /* 页面底纹网格 */
   --page-grid: rgba(13, 138, 126, 0.05);
 
+  /* HUD 仪器盘图层（浅色下刻意弱化，霓虹在浅底上会糊） */
+  --hud-accent: rgba(13, 138, 126, 1);
+  --hud-dim: rgba(13, 138, 126, 0.2);
+  --hud-faint: rgba(13, 138, 126, 0.06);
+  --hud-scan: rgba(13, 138, 126, 0.035);
+  --hud-sweep: rgba(13, 138, 126, 0.06);
+  --hud-shadow: 0 0 0 1px rgba(13, 138, 126, 0.16), 0 0 18px rgba(13, 138, 126, 0.08);
+  --hud-shadow-strong: 0 0 0 1px rgba(13, 138, 126, 0.38), 0 0 26px rgba(13, 138, 126, 0.16);
+
   --shadow: 0 1px 2px rgba(12, 23, 39, 0.04);
   --shadow-lg: 0 2px 6px rgba(12, 23, 39, 0.06), 0 12px 28px rgba(12, 23, 39, 0.07);
 
@@ -79,6 +88,15 @@
   --down-soft: rgba(36, 192, 125, 0.13);
 
   --page-grid: rgba(45, 212, 191, 0.045);
+
+  /* HUD 仪器盘图层 */
+  --hud-accent: rgba(45, 212, 191, 1);
+  --hud-dim: rgba(45, 212, 191, 0.22);
+  --hud-faint: rgba(45, 212, 191, 0.07);
+  --hud-scan: rgba(45, 212, 191, 0.055);
+  --hud-sweep: rgba(45, 212, 191, 0.085);
+  --hud-shadow: 0 0 0 1px rgba(45, 212, 191, 0.16), 0 0 22px rgba(45, 212, 191, 0.1);
+  --hud-shadow-strong: 0 0 0 1px rgba(45, 212, 191, 0.4), 0 0 34px rgba(45, 212, 191, 0.22);
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.4);
@@ -267,20 +285,62 @@ time,
   align-items: center;
   gap: 7px;
   padding: 9px 18px;
-  border-radius: var(--radius);
+  border-radius: var(--radius) var(--radius) 0 var(--radius);
+  /* 右下角切掉一块，制造"仪表按钮"的斜角感 */
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    0 100%
+  );
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+/* 悬停时一道光从左扫到右 */
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    rgba(45, 212, 191, 0.22) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+.btn:hover::after {
+  animation: btn-sweep 0.55s ease-out;
+}
+
+@keyframes btn-sweep {
+  to {
+    transform: translateX(120%);
+  }
 }
 
 .btn:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--hud-dim), 0 0 18px rgba(45, 212, 191, 0.14);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
 }
 
 .btn-primary {
@@ -288,6 +348,7 @@ time,
   border-color: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
+  box-shadow: 0 0 0 1px var(--hud-dim), 0 0 20px rgba(45, 212, 191, 0.28);
 }
 
 .btn-primary:hover {
@@ -301,7 +362,7 @@ time,
 .tag {
   display: inline-block;
   padding: 1px 9px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.76rem;
@@ -344,6 +405,18 @@ time,
   border-radius: 50%;
   background: currentColor;
   flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+  animation: status-blink 2.6s ease-in-out infinite;
+}
+
+@keyframes status-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 /* ---------- 元信息行 ---------- */
@@ -360,6 +433,7 @@ time,
 /* ---------- 板块标题 ---------- */
 
 .section-head {
+  position: relative;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -367,6 +441,36 @@ time,
   margin-bottom: 20px;
   padding-bottom: 11px;
   border-bottom: 1px solid var(--border);
+}
+
+/* 标题左侧的一段荧光短线 */
+.section-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 54px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hud-accent), transparent);
+  box-shadow: 0 0 8px var(--hud-dim);
+  animation: section-line 3.4s ease-in-out infinite;
+}
+
+@keyframes section-line {
+  0%,
+  100% {
+    opacity: 0.55;
+    width: 54px;
+  }
+  50% {
+    opacity: 1;
+    width: 96px;
+  }
+}
+
+.section-head h2 {
+  position: relative;
+  padding-left: 2px;
 }
 
 .section-head h2 {
@@ -382,9 +486,36 @@ time,
 /* ---------- 面板：终端读数框 ---------- */
 
 .panel {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent));
+  background-size:
+    13px 1.5px, 1.5px 13px,
+    13px 1.5px, 1.5px 13px,
+    13px 1.5px, 1.5px 13px,
+    13px 1.5px, 1.5px 13px;
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+  background-repeat: no-repeat;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.panel:hover {
+  border-color: var(--hud-dim);
+  box-shadow: var(--hud-shadow);
 }
 
 .panel-accent {
@@ -551,4 +682,265 @@ time,
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+   HUD 仪器盘图层
+   ------------------------------------------------------------
+   扫描线、扫光、四角括号、发光。
+   这些都是**纯装饰**：pointer-events 全关，不参与命中，
+   且全部在 prefers-reduced-motion 下停用。
+   ============================================================ */
+
+/* ---------- 扫描线（缓慢下移，不闪） ---------- */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    var(--hud-scan) 2px 4px
+  );
+  animation: hud-scan 14s linear infinite;
+  opacity: 0.9;
+  /* 暗角：边缘压暗，视线集中到中间 */
+  box-shadow: inset 0 0 220px 70px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme='light'] body::after {
+  box-shadow: inset 0 0 200px 70px rgba(13, 23, 39, 0.06);
+}
+
+@keyframes hud-scan {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 4px;
+  }
+}
+
+/* ---------- 扫光：一条缓慢掠过屏幕的光带 ---------- */
+body::before {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -220px;
+  height: 220px;
+  z-index: 9997;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--hud-sweep) 45%,
+    var(--hud-sweep) 55%,
+    transparent
+  );
+  animation: hud-sweep 11s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes hud-sweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(calc(100vh + 440px));
+    opacity: 0;
+  }
+}
+
+/* ---------- 视口取景框：固定在屏幕四角 ---------- */
+html::before {
+  content: '';
+  position: fixed;
+  inset: 9px;
+  z-index: 9996;
+  pointer-events: none;
+  background-image: var(--hud-corner-image);
+  background-size:
+    34px 2px, 2px 34px,
+    34px 2px, 2px 34px,
+    34px 2px, 2px 34px,
+    34px 2px, 2px 34px;
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  html::before {
+    display: none;
+  }
+}
+
+/* ---------- 四角括号 ---------- */
+/*
+ * 用 8 条背景渐变拼出 4 个 L 形角，不需要额外 DOM。
+ *
+ * 注意：这些值做成 token 是为了让组件也能直接用 —— 组件里的
+ * `background: var(--surface)` 简写会重置 background-image，
+ * 所以组件必须用 background-color + 下面三个属性，不能只用简写。
+ */
+:root {
+  --hud-corner-image:
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent)),
+    linear-gradient(var(--hud-accent), var(--hud-accent));
+  --hud-corner-size:
+    20px 2px, 2px 20px,
+    20px 2px, 2px 20px,
+    20px 2px, 2px 20px,
+    20px 2px, 2px 20px;
+  --hud-corner-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+}
+
+/* 补角工具类：给任何元素加上四角括号 */
+.hud-corners {
+  background-image: var(--hud-corner-image);
+  background-size: var(--hud-corner-size);
+  background-position: var(--hud-corner-position);
+  background-repeat: no-repeat;
+}
+
+.hud-corners-legacy {
+  --corner-len: 14px;
+  --corner-w: 1.5px;
+  --corner-color: var(--hud-accent);
+  background-image:
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color)),
+    linear-gradient(var(--corner-color), var(--corner-color));
+  background-size:
+    var(--corner-len) var(--corner-w),
+    var(--corner-w) var(--corner-len),
+    var(--corner-len) var(--corner-w),
+    var(--corner-w) var(--corner-len),
+    var(--corner-len) var(--corner-w),
+    var(--corner-w) var(--corner-len),
+    var(--corner-len) var(--corner-w),
+    var(--corner-w) var(--corner-len);
+  background-position:
+    left top,
+    left top,
+    right top,
+    right top,
+    left bottom,
+    left bottom,
+    right bottom,
+    right bottom;
+  background-repeat: no-repeat;
+}
+
+/* ---------- 发光 ---------- */
+.hud-glow {
+  box-shadow: var(--hud-shadow);
+}
+
+.hud-glow:hover {
+  box-shadow: var(--hud-shadow-strong);
+}
+
+/* ---------- 呼吸点：状态指示灯 ---------- */
+.hud-pulse {
+  position: relative;
+}
+
+.hud-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 1px solid var(--hud-accent);
+  opacity: 0;
+  animation: hud-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes hud-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* ---------- 标题故障感（仅悬停，且不作用于正文） ---------- */
+.hud-glitch {
+  position: relative;
+  transition: text-shadow 0.12s steps(2, end);
+}
+
+.hud-glitch:hover {
+  text-shadow:
+    1.5px 0 0 rgba(255, 93, 93, 0.55),
+    -1.5px 0 0 rgba(45, 212, 191, 0.55);
+}
+
+/* ---------- 减弱动效：一律停掉 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  body::after,
+  body::before {
+    animation: none;
+    display: none;
+  }
+
+  html::before {
+    opacity: 0.35;
+  }
+
+  .hud-pulse::after {
+    animation: none;
+  }
+
+  .hud-glitch:hover {
+    text-shadow: none;
+  }
+
+  .btn::after,
+  .section-head::before {
+    animation: none;
+  }
+
+  .status::before {
+    animation: none;
+    opacity: 1;
+  }
+
+  .panel:hover,
+  .btn:hover {
+    box-shadow: none;
+    transform: none;
+  }
 }

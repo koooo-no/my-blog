@@ -392,8 +392,13 @@ const combinedLines = [
     margin: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: var(--surface);
+    background-color: var(--surface);
+    background-image: var(--hud-corner-image);
+    background-size: var(--hud-corner-size);
+    background-position: var(--hud-corner-position);
+    background-repeat: no-repeat;
     overflow: hidden;
+    box-shadow: var(--hud-shadow);
   }
 
   .readout > div {
@@ -565,12 +570,17 @@ const combinedLines = [
     padding: 18px 20px 16px;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--surface);
-    transition: border-color 0.16s ease;
+    background-color: var(--surface);
+    background-image: var(--hud-corner-image);
+    background-size: var(--hud-corner-size);
+    background-position: var(--hud-corner-position);
+    background-repeat: no-repeat;
+    transition: border-color 0.16s ease, box-shadow 0.2s ease;
   }
 
   .strat-card:hover {
-    border-color: var(--accent-line);
+    border-color: var(--hud-dim);
+    box-shadow: var(--hud-shadow);
   }
 
   .card-head {

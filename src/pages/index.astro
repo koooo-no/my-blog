@@ -211,7 +211,75 @@ const strategyCount = quant.strategies.length;
   /* ============ 首屏 ============ */
 
   .hero {
+    position: relative;
     padding-block: 40px 56px;
+    /* 光晕是负偏移的绝对定位元素，必须裁掉，否则手机上会把页面撑宽 */
+    overflow: hidden;
+  }
+
+  /* 标题背后的一圈冷光，让首屏有"设备亮起来"的感觉 */
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: clamp(-140px, -10vw, -40px);
+    width: clamp(300px, 60vw, 620px);
+    height: clamp(300px, 50vw, 520px);
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at 35% 40%,
+      rgba(45, 212, 191, 0.09),
+      transparent 62%
+    );
+    animation: hero-breathe 7s ease-in-out infinite;
+  }
+
+  @keyframes hero-breathe {
+    0%,
+    100% {
+      opacity: 0.65;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+  }
+
+  .hero-inner {
+    position: relative;
+  }
+
+  /* hero 外框：四角括号 + 极淡底色，把首屏圈成一块"面板" */
+  .hero {
+    position: relative;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 16px 0 -10px;
+    pointer-events: none;
+    border-radius: var(--radius-lg);
+    background-image: var(--hud-corner-image);
+    background-size:
+      26px 2px, 2px 26px,
+      26px 2px, 2px 26px,
+      26px 2px, 2px 26px,
+      26px 2px, 2px 26px;
+    background-position:
+      left top, left top,
+      right top, right top,
+      left bottom, left bottom,
+      right bottom, right bottom;
+    background-repeat: no-repeat;
+    opacity: 0.55;
+  }
+
+  @media (max-width: 900px) {
+    .hero::after {
+      display: none;
+    }
   }
 
   .hero-inner {
@@ -301,9 +369,19 @@ const strategyCount = quant.strategies.length;
   .readout {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--surface);
-    box-shadow: 0 0 0 1px var(--glow) inset;
+    background-color: var(--surface);
+    background-image: var(--hud-corner-image);
+    background-size: var(--hud-corner-size);
+    background-position: var(--hud-corner-position);
+    background-repeat: no-repeat;
+    box-shadow: var(--hud-shadow);
     overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .readout:hover {
+    border-color: var(--hud-dim);
+    box-shadow: var(--hud-shadow-strong);
   }
 
   .readout-head {
@@ -409,14 +487,19 @@ const strategyCount = quant.strategies.length;
     padding: 20px;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--surface);
+    background-color: var(--surface);
+    background-image: var(--hud-corner-image);
+    background-size: var(--hud-corner-size);
+    background-position: var(--hud-corner-position);
+    background-repeat: no-repeat;
     color: var(--text);
     transition: border-color 0.16s ease;
   }
 
   .project-card:hover {
-    border-color: var(--accent-line);
+    border-color: var(--hud-dim);
     color: var(--text);
+    box-shadow: var(--hud-shadow);
   }
 
   .project-top {
