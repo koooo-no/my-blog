@@ -61,8 +61,21 @@ const combinedLines = [
         </dl>
       </div>
       <p class="lead">
-        <strong>前瞻跟踪</strong>记录：策略从 2026-09-14 起逐日累积，参数在起跑前已冻结，没有经过任何事后优化。全部为<strong>模拟盘</strong>，不接券商、不下真单。
+        <strong>前瞻跟踪</strong>记录：策略从 2026-09-14 起连续累积，参数在起跑前已冻结，
+        期间未做任何事后优化。全部为<strong>模拟盘</strong>，不接券商、不下真单。
       </p>
+
+      {
+        quant.officialFrozen && (
+          <aside class="frozen-note" role="note">
+            <div class="frozen-head">
+              <span class="frozen-badge">已冻结</span>
+              <span class="frozen-date">记录止于 {quant.frozenAt}</span>
+            </div>
+            <p>{quant.frozenNote}</p>
+          </aside>
+        )
+      }
 
       <nav class="sub-nav" aria-label="量化栏目导航">
         <span class="sub-current" aria-current="page">策略看板</span>
@@ -76,6 +89,7 @@ const combinedLines = [
         本页内容仅为个人研究记录，<strong>不构成任何投资建议</strong>，也不构成任何形式的要约或承诺。
         以下为<strong>前瞻跟踪</strong>记录：策略参数在起跑前已冻结，记录期间未做任何调整，
         交易成本按项目自身的成本模型计入。全部为模拟盘，不接券商、不下真单，历史记录不代表未来表现。
+        该记录已停止更新，仅供回顾。
         任何人据此操作，风险自负。
       </p>
     </aside>
@@ -282,6 +296,62 @@ const combinedLines = [
     <p class="footnote">
       指标均由回测脚本计算，未做手工调整。成本与风险假设见各策略详情页与研究报告。
     </p>
+    <!-- ============ 事故后重建的实验账本 ============ -->
+    {
+      quant.paperLedgers && quant.paperLedgers.length > 0 && (
+        <section class="block">
+          <div class="section-head">
+            <h2>实验账本</h2>
+            <span class="count">{quant.paperLedgers.length} 个</span>
+          </div>
+
+          <p class="ledger-intro">
+            上面那条官方记录冻结之后，本地项目重建了一套<strong>独立的纸上账本</strong>，
+            用来继续观察同一策略在实际持仓下的表现。这些账本是<strong>重新起算</strong>的，
+            与上面的历史记录不连续，而且目前只有很少几天 —— 只能当进度看，不能当结论。
+          </p>
+
+          <div class="table-scroll">
+            <table>
+              <caption class="visually-hidden">事故后重建的实验账本当前状态</caption>
+              <thead>
+                <tr>
+                  <th scope="col">账本</th>
+                  <th scope="col">起始日</th>
+                  <th scope="col" class="num">记录天数</th>
+                  <th scope="col" class="num">初始资金</th>
+                  <th scope="col" class="num">当前净值</th>
+                  <th scope="col" class="num">累计</th>
+                  <th scope="col" class="num">持仓</th>
+                  <th scope="col" class="num">成交</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quant.paperLedgers.map((l) => (
+                  <tr>
+                    <th scope="row" class="row-head">{l.label}</th>
+                    <td class="num">{l.startDate}</td>
+                    <td class="num">{l.days}</td>
+                    <td class="num">{num(l.initCapital, 0)}</td>
+                    <td class="num">{num(l.nav, 2)}</td>
+                    <td class={`num strong ${l.returnPct >= 0 ? 'up' : 'down'}`}>
+                      {signedPct(l.returnPct, 2)}
+                    </td>
+                    <td class="num">{l.positions}</td>
+                    <td class="num">{l.tradeCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p class="table-note">
+            账本 B（5,000 元）因为资金过小、单笔不足以覆盖最小交易单位，至今未能建仓；
+            账本 C 建立于记录冻结之后，只有 1 天数据。这两点都如实展示，不做修饰。
+          </p>
+        </section>
+      )
+    }
   </div>
 </BaseLayout>
 
@@ -391,6 +461,57 @@ const combinedLines = [
   .sub-nav a:hover {
     color: var(--accent);
     border-color: var(--accent-line);
+  }
+
+  /* ---------- 冻结提示 ---------- */
+
+  .frozen-note {
+    margin-top: 18px;
+    padding: 13px 16px;
+    border: 1px solid var(--border-strong);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+  }
+
+  .frozen-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  .frozen-badge {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 1px 8px;
+  }
+
+  .frozen-date {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-mute);
+  }
+
+  .frozen-note p {
+    margin: 0;
+    font-size: 0.83rem;
+    line-height: 1.75;
+    color: var(--text-soft);
+  }
+
+  .ledger-intro {
+    margin: 0 0 16px;
+    font-size: 0.86rem;
+    line-height: 1.8;
+    color: var(--text-soft);
   }
 
   /* ---------- 免责声明 ---------- */

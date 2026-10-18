@@ -71,6 +71,19 @@ export function tinyDate(iso: string): string {
   return `${iso.slice(2, 4)}/${iso.slice(5, 7)}`;
 }
 
+/**
+ * 图表横轴刻度：按区间长度选格式。
+ *
+ * 只有「年/月」的话，短区间里所有刻度都会是同一个月（比如 19 天的曲线
+ * 全显示成 26/09），完全看不出时间推进。所以跨月以内改用「月-日」。
+ */
+export function axisDate(isoFirst: string, isoLast: string, iso: string): string {
+  const spanDays =
+    (new Date(isoLast).getTime() - new Date(isoFirst).getTime()) / 86_400_000;
+  if (spanDays <= 120) return `${iso.slice(5, 7)}-${iso.slice(8, 10)}`;
+  return tinyDate(iso);
+}
+
 /** 把数值数组映射到 [0,1]；值相同时返回 0.5 */
 export function normalize(values: number[]): { min: number; max: number; scale: (v: number) => number } {
   const min = Math.min(...values);

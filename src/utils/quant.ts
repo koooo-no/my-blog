@@ -58,11 +58,37 @@ export interface QuantStrategy {
   trades: QuantTrade[];
 }
 
+/** 事故后重建的实验账本（纸上账本，只用于观察，历史很短） */
+export interface PaperLedger {
+  id: string;
+  label: string;
+  /** 初始资金 */
+  initCapital: number;
+  startDate: string;
+  lastDate: string;
+  /** 已记录的交易日数 */
+  days: number;
+  nav: number;
+  /** 相对初始资金的累计收益 */
+  returnPct: number;
+  positions: number;
+  cash: number;
+  tradeCount: number;
+}
+
 export interface QuantData {
   updated: string;
   benchmarkName: string;
   currency: string;
   strategies: QuantStrategy[];
+  /** 官方前瞻记录是否已冻结（冻结后不再更新） */
+  officialFrozen?: boolean;
+  /** 冻结日期 */
+  frozenAt?: string;
+  /** 冻结原因说明 */
+  frozenNote?: string;
+  /** 事故后重建的实验账本 */
+  paperLedgers?: PaperLedger[];
 }
 
 export const quant = raw as unknown as QuantData;

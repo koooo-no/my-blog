@@ -1,7 +1,10 @@
 {
  "_说明": "前瞻跟踪记录（模拟盘，非实盘）。由本地 A_stock_quant 项目导出，仅含净值、指标与聚合统计，不含任何策略逻辑或持仓明细。",
  "_source": "A_stock_quant / output/phase8_forward_daily_log.csv",
- "updated": "2026-10-16T18:30:04+08:00",
+ "officialFrozen": true,
+ "frozenAt": "2026-10-16",
+ "frozenNote": "2026-10-17 本地项目发生磁盘清理事故，前瞻跟踪所依赖的回测引擎被永久删除，官方前瞻记录因此冻结在 2026-10-16。这段记录是事故前连续累积的，未做任何事后修改；事故后重建的实验账本单独列出。",
+ "updated": "2026-10-18T17:50:52+08:00",
  "benchmarkName": "沪深300",
  "currency": "CNY",
  "strategies": [
@@ -36,7 +39,8 @@
     "2026-10-12",
     "2026-10-13",
     "2026-10-14",
-    "2026-10-15"
+    "2026-10-15",
+    "2026-10-16"
    ],
    "equity": [
     1.0,
@@ -56,7 +60,8 @@
     0.981215,
     0.973863,
     0.951819,
-    0.929359
+    0.929359,
+    0.931528
    ],
    "benchmark": [
     1.0,
@@ -76,23 +81,24 @@
     0.957121,
     0.954375,
     0.941429,
-    0.929896
+    0.929896,
+    0.930923
    ],
    "metrics": {
-    "totalReturn": -0.0706,
-    "annualReturn": -0.6414,
-    "benchmarkTotalReturn": -0.0701,
-    "benchmarkAnnualReturn": -0.6385,
-    "excessAnnualReturn": -0.0029,
-    "volatility": 0.1816,
+    "totalReturn": -0.0685,
+    "annualReturn": -0.6097,
+    "benchmarkTotalReturn": -0.0691,
+    "benchmarkAnnualReturn": -0.613,
+    "excessAnnualReturn": 0.0033,
+    "volatility": 0.1779,
     "maxDrawdown": -0.0839,
-    "maxDrawdownDays": 12,
-    "sharpe": -3.642,
-    "calmar": -7.647,
-    "winRate": 0.2353,
-    "profitFactor": 0.364,
+    "maxDrawdownDays": 13,
+    "sharpe": -3.539,
+    "calmar": -7.268,
+    "winRate": 0.2778,
+    "profitFactor": 0.385,
     "turnover": 0.0,
-    "tradeCount": 12
+    "tradeCount": 29
    },
    "monthly": [
     {
@@ -103,10 +109,51 @@
     {
      "y": 2026,
      "m": 10,
-     "r": -0.058
+     "r": -0.0558
     }
    ],
    "trades": []
+  }
+ ],
+ "paperLedgers": [
+  {
+   "id": "a-full",
+   "label": "A_full 完整版(100万)",
+   "initCapital": 1000000.0,
+   "startDate": "2026-10-14",
+   "lastDate": "2026-10-16",
+   "days": 3,
+   "nav": 998239.14,
+   "returnPct": -0.0018,
+   "positions": 19,
+   "cash": 69826.09,
+   "tradeCount": 27
+  },
+  {
+   "id": "b-small",
+   "label": "B_small 小资金版(5000)",
+   "initCapital": 5000.0,
+   "startDate": "2026-10-14",
+   "lastDate": "2026-10-16",
+   "days": 3,
+   "nav": 5000.0,
+   "returnPct": 0.0,
+   "positions": 0,
+   "cash": 5000.0,
+   "tradeCount": 0
+  },
+  {
+   "id": "c-200k",
+   "label": "C_real 目标配置(20万)",
+   "initCapital": 200000.0,
+   "startDate": "2026-10-16",
+   "lastDate": "2026-10-16",
+   "days": 1,
+   "nav": 200000.0,
+   "returnPct": 0.0,
+   "positions": 0,
+   "cash": 200000.0,
+   "tradeCount": 0
   }
  ]
 }

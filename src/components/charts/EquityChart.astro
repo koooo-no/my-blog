@@ -7,7 +7,7 @@
  * 图下方固定给出：图例、数据区间、起点。风险与成本假设由页面正文负责，
  * 图表不编造任何信息。
  */
-import { pct, tinyDate, axisRange } from '../../utils/format';
+import { pct, axisDate, axisRange } from '../../utils/format';
 
 interface Line {
   name: string;
@@ -108,7 +108,7 @@ const rangeEnd = dates[dates.length - 1] ?? '';
             class="axis-label"
             text-anchor={k === 0 ? 'start' : k === 4 ? 'end' : 'middle'}
           >
-            {tinyDate(dates[i])}
+            {axisDate(dates[0], dates[dates.length - 1], dates[i])}
           </text>
         ))
       }

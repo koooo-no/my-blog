@@ -7,7 +7,7 @@
  * 配色：回撤是**下跌**，按中国习惯用绿色（红涨绿跌）。
  * 为避免只靠颜色传达含义，标题里写明"负向"，数值也带负号。
  */
-import { pct, tinyDate, niceTicks } from '../../utils/format';
+import { pct, axisDate, niceTicks } from '../../utils/format';
 
 interface Props {
   dates: string[];
@@ -87,7 +87,7 @@ const maxDdIdx = drawdown.indexOf(maxDd);
             class="axis-label"
             text-anchor={k === 0 ? 'start' : k === 4 ? 'end' : 'middle'}
           >
-            {tinyDate(dates[i])}
+            {axisDate(dates[0], dates[dates.length - 1], dates[i])}
           </text>
         ))
       }
